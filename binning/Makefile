@@ -1,8 +1,9 @@
 CFLAGS=-std=c99
 CC=gcc
+LDFLAGS=-lz
 
 GETOPTDIR=./freegetopt-0.11
-BINARIES=btprint test-bins
+BINARIES=btprint test-bins test-ngread
 
 all: $(BINARIES)
 
@@ -13,7 +14,10 @@ clean:
 	rm -f $(BINARIES)
 
 btprint: btprint.o bins.o $(GETOPTDIR)/getopt.o
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
-test-bins: bins_test.o bins.o $(GETOPTDIR)/getopt.o
-	$(CC) $(CFLAGS) -o $@ $^
+test-bins: test-bins.o bins.o $(GETOPTDIR)/getopt.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+
+test-ngread: test-ngread.o ngread.o $(GETOPTDIR)/getopt.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
