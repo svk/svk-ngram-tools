@@ -12,6 +12,7 @@ struct bin_consentry {
 struct bin_cons {
     long long total_count;
     long long bin_threshold;
+    long long remaining_count;
     int bin_count;
     int target_bin_count;
     struct bin_consentry *first_bin;

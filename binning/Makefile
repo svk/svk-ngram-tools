@@ -3,7 +3,7 @@ CC=gcc
 LDFLAGS=-lz
 
 GETOPTDIR=./freegetopt-0.11
-BINARIES=btprint test-bins test-ngread
+BINARIES=btprint test-bins test-ngread mkbins
 
 all: $(BINARIES)
 
@@ -21,3 +21,7 @@ test-bins: test-bins.o bins.o $(GETOPTDIR)/getopt.o
 
 test-ngread: test-ngread.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+
+mkbins: mkbins.o ngread.o bins.o $(GETOPTDIR)/getopt.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+

@@ -9,7 +9,7 @@
 struct bin_cons* make_bincons(long long total_count, int no_bins) {
     struct bin_cons *rv = malloc(sizeof *rv);
     if( rv ) {
-        rv->total_count = total_count;
+        rv->remaining_count = rv->total_count = total_count;
         rv->bin_threshold = total_count / no_bins;
         rv->first_bin = rv->last_bin = 0;
         rv->target_bin_count = no_bins;
@@ -42,9 +42,12 @@ int update_bincons(struct bin_cons* bc, const char *token, long long count) {
         }
         bc->bin_count++;
         bc->last_bin = bce;
+
+        bc->bin_threshold = bc->remaining_count / (bc->target_bin_count - bc->bin_count + 1);
     } else {
         bc->last_bin->count += count;
     }
+    bc->remaining_count -= count;
     return 0;
 }
 
