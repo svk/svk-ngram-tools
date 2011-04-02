@@ -106,6 +106,9 @@ int main(int argc, char* argv[]) {
         fprintf( stderr, "%lld %d-grams processed.\n", processed, N );
     }
 
+    int *xs = malloc(sizeof *xs * N );
+    assert( xs );
+
     long long maxindex = ipow( bt->no_bins, N );
     for(long long j=0;j<maxindex;j++) {
         long long index = j;
@@ -114,12 +117,17 @@ int main(int argc, char* argv[]) {
         for(int k=0;k<N;k++) {
             int x = index % bt->no_bins;
             index /= bt->no_bins;
-            printf( "\t%d", x );
+            xs[ N-1-k ] = x;
+        }
+        for(int k=0;k<N;k++) {
+            printf( "\t%d", xs[k] );
         }
         printf( "\n" );
     }
 
     free_bintable( bt );
+
+    free( xs );
 
     return 0;
 }
