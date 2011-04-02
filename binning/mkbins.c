@@ -8,16 +8,22 @@
 
 #include <assert.h>
 
+#include <string.h>
+
 int main(int argc, char* argv[]) {
     int B = 10;
     char *OFN = "bintable_mkbins.out";
     int verbose = 0;
     long long W = -1;
     char *IFN = 0;
+    int verify_order = 0;
     while(1) {
-        int c = getopt( argc, argv, "vb:o:W:" );
+        int c = getopt( argc, argv, "vb:o:W:V" );
         if( c < 0 ) break;
         switch( c ) {
+            case 'V':
+                verify_order = 1;
+                break;
             case 'v':
                 verbose = 1;
                 break;
@@ -62,9 +68,33 @@ int main(int argc, char* argv[]) {
     struct bin_cons *bc = make_bincons( W, B );
     assert( bc );
 
+    char *last = 0;
+    int lastlen = 8;
+
     struct ngr_file *ngrf = ngr_open( IFN );
     while( ngr_next(ngrf) ) {
         assert( ngr_columns(ngrf) == 2 );
+        if( verify_order ) {
+            if( last ) {
+                if( strcmp( last, ngr_s_col( ngrf, 0 ) ) >= 0 ) {
+                    fprintf( stderr, "verification failed: \"%s\" occurs before \"%s\"\n", last, ngr_s_col(ngrf,0) );
+                    exit(1);
+                }
+            }
+            int reqbuflen = strlen( ngr_s_col( ngrf, 0 ) ) + 1;
+            int mrealloc = !last;
+            while( reqbuflen > lastlen ) {
+                lastlen *= 2;
+                mrealloc = 1;
+            }
+            if( mrealloc ) {
+                if( last ) {
+                    free( last );
+                }
+                last = malloc( lastlen );
+                strcpy( last, ngr_s_col( ngrf, 0 ) );
+            }
+        }
         int err = update_bincons( bc, ngr_s_col(ngrf,0), ngr_ll_col(ngrf,1) );
         assert( !err );
     }
@@ -73,6 +103,10 @@ int main(int argc, char* argv[]) {
     bincons_write( bc, of );
 
     fclose(of);
+
+    if( last ) {
+        free( last );
+    }
 
     return 0;
 }
