@@ -152,3 +152,11 @@ int bincons_write(struct bin_cons *bc, FILE* f) {
     } while(0);
     return 1;
 }
+
+int bt_classify(struct bin_table* bt, const char* s) {
+    int mn = 0, mx = bt->no_bins - 1;
+    while( mn != mx ) {
+        int mp = (mn+mx)/2;
+        assert( mn < mx );
+    }
+}

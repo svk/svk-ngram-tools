@@ -35,4 +35,6 @@ int bincons_write(struct bin_cons *, FILE*);
 struct bin_table* bintable_read(FILE*);
 void free_bintable(struct bin_table*);
 
+int bt_classify(struct bin_table*, const char*);
+
 #endif
