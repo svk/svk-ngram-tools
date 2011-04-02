@@ -32,6 +32,7 @@ int update_bincons(struct bin_cons*, const char*, long long);
 void free_bincons(struct bin_cons*);
 int bincons_write(struct bin_cons *, FILE*);
 
+struct bin_table* bintable_read_fn(const char *);
 struct bin_table* bintable_read(FILE*);
 void free_bintable(struct bin_table*);
 

@@ -59,7 +59,8 @@ int ngr_next(struct ngr_file* ngrf) {
         assert( ngrf->newlines > 0 );
         ngrf->col[ 0 ] = ngrf->buffer;
         for(ngrf->linesize=0;ngrf->buffer[ngrf->linesize] != '\n';ngrf->linesize++) {
-            if( ngrf->buffer[ngrf->linesize] == '\t' ) {
+            if( ngrf->buffer[ngrf->linesize] == '\t'
+                || ngrf->buffer[ngrf->linesize] == ' ' ) {
                 ngrf->buffer[ngrf->linesize] = '\0';
                 if( ngrf->columns >= MAX_COLUMNS ) {
                     fprintf( stderr, "fatal error: too many columns\n" );

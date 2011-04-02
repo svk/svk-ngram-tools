@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <string.h>
 #include <assert.h>
 
 long long ipow(long long a, long long b) {
@@ -53,7 +54,7 @@ int main(int argc, char* argv[]) {
         fprintf( stderr, "fatal error: input argument -T (bin table) missing\n" );
         return 1;
     }
-    struct bin_table *bt = bintable_read( TFN );
+    struct bin_table *bt = bintable_read_fn( TFN );
 
     long long *histogram = 0;
     long long memreq = sizeof *histogram * ipow( bt->no_bins, N );
@@ -71,29 +72,54 @@ int main(int argc, char* argv[]) {
 
     if( verbose ) {
         fprintf( stderr, "Parameters:\n" );
-        fprintf( stderr, "\tb: %d bins\n", B );
         fprintf( stderr, "\tn: %d-grams\n", N );
         fprintf( stderr, "\tinput from:\n" );
         for(int j=argi;j<argc;j++) {
             fprintf( stderr, "\t\t\"%s\"\n", argv[argi] );
         }
+        fprintf( stderr, "\t%lld bytes of memory required for histogram\n", memreq );
     }
+
+    long long processed = 0;
 
     for(int j=argi;j<argc;j++) {
         const char *IFN = argv[argi];
 
         struct ngr_file *ngrf = ngr_open( IFN );
         while( ngr_next(ngrf) ) {
-            assert( ngr_columns(ngrf) == (N+1) );
-            long long index = 0;
-            for(for k=0;k<N;k++) {
-                index *= bt->no_bins;
+            if( ngr_columns(ngrf) != (N+1) ) {
+                fprintf( stderr, "fatal error: expected %d columns, got %d\n", N + 1, ngr_columns(ngrf) );
+                exit(1);
             }
-            int err = update_bincons( bc, ngr_s_col(ngrf,0), ngr_ll_col(ngrf,1) );
-            assert( !err );
+            long long index = 0;
+            for(int k=0;k<N;k++) {
+                index *= bt->no_bins;
+                index += bt_classify( bt, ngr_s_col( ngrf, k ) );
+            }
+            histogram[ index ]++;
+            ++processed;
         }
         ngr_free(ngrf);
     }
+
+    if( verbose ) {
+        fprintf( stderr, "%lld %d-grams processed.\n", processed, N );
+    }
+
+    long long maxindex = ipow( bt->no_bins, N );
+    for(long long j=0;j<maxindex;j++) {
+        long long index = j;
+        long long val = histogram[index];
+        printf( "%lld", val );
+        for(int k=0;k<N;k++) {
+            int x = index % bt->no_bins;
+            index /= bt->no_bins;
+            printf( "\t%d", x );
+        }
+        printf( "\n" );
+    }
+
+    free_bintable( bt );
 
     return 0;
 }
