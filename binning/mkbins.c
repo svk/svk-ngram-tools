@@ -17,10 +17,14 @@ int main(int argc, char* argv[]) {
     long long W = -1;
     char *IFN = 0;
     int verify_order = 0;
+    int find_size = 0;
     while(1) {
-        int c = getopt( argc, argv, "vb:o:W:V" );
+        int c = getopt( argc, argv, "vb:o:W:VS" );
         if( c < 0 ) break;
         switch( c ) {
+            case 'S':
+                find_size = 1;
+                break;
             case 'V':
                 verify_order = 1;
                 break;
@@ -68,12 +72,18 @@ int main(int argc, char* argv[]) {
     struct bin_cons *bc = make_bincons( W, B );
     assert( bc );
 
+    int largest_size = -1;;
+
     char *last = 0;
     int lastlen = 8;
 
     struct ngr_file *ngrf = ngr_open( IFN );
     while( ngr_next(ngrf) ) {
         assert( ngr_columns(ngrf) == 2 );
+        if( find_size ){
+            int l = strlen( ngr_s_col( ngrf, 0 ) );
+            largest_size = (largest_size > l) ? largest_size : l;
+        }
         if( verify_order ) {
             if( last ) {
                 if( strcmp( last, ngr_s_col( ngrf, 0 ) ) >= 0 ) {
@@ -106,6 +116,10 @@ int main(int argc, char* argv[]) {
 
     if( last ) {
         free( last );
+    }
+
+    if( find_size ) {
+        fprintf( stderr, "info: longest token was %d bytes long.\n", largest_size );
     }
 
     return 0;
