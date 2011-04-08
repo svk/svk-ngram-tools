@@ -2,7 +2,7 @@ CFLAGS=-std=c99
 CC=gcc
 LDFLAGS=-lz
 
-GETOPTDIR=./freegetopt-0.11
+GETOPTDIR=../lib/freegetopt-0.11
 BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin
 
 all: $(BINARIES)
