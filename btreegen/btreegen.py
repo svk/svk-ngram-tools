@@ -14,15 +14,28 @@ class DirectoryNamer:
         s = self.fmt % k
         return "/".join( [ s[-(i+1)] for i in range(self.n) ] + [ s[:-self.n] ] )
 
+
 SimpleFileNamer = lambda n : "%d" % n
 
+MaxEntriesInNode = 128 # 128-ish is a reasonable value -- may want to tweak so we can cache an appropriate amount
+
+def NodesRequired( entries ):
+    if entries <= MaxEntriesInNode:
+        return 1
+    leafNodes = (entries + MaxEntriesInNode - 1) // MaxEntriesInNode
+    return leafNodes + NodesRequired( leafNodes )
+
+def DigitsRequired( nodes, base = 10 ):
+    from math import log, ceil
+    return int( ceil( log( nodes ) / log( base ) ) )
+
+EntryNumberBound = 1176470663 # whole corpus -- overestimate
 UseGzip = False
 RecordSize = 256
 MaxTokenSize = 232 # longest 5-gram + spaces is 204 (.) (Note we need one more for NUL)
-TokenNameTemplate = DirectoryNamer( 2, 4 )
+TokenNameTemplate = DirectoryNamer( 2, DigitsRequired( NodesRequired( EntryNumberBound ) ) )
 TokenNameLength = 16 # need one more for NUL, for convenience
 FirstTokenId = 1
-MaxEntriesInNode = 128 # 128-ish is a reasonable value -- may want to tweak so we can cache an appropriate amount
 
 NextTokenId = FirstTokenId
 EntryPacker = "=%dsQ%ds" % (MaxTokenSize, TokenNameLength)

@@ -11,10 +11,15 @@
 int main(int argc, char *argv[]) {
     int retval = 0;
     int verbose = 0;
+    const char *treename = 0;
+
     while(1) {
-        int c = getopt( argc, argv, "v" );
+        int c = getopt( argc, argv, "vT:" );
         if( c < 0 ) break;
         switch( c ) {
+            case 'T':
+                treename = optarg;
+                break;
             case 'v':
                 verbose = 1;
                 break;
@@ -25,7 +30,10 @@ int main(int argc, char *argv[]) {
     }
     int argi = optind;
 
-    const char *treename = "mytree3";
+    if( !treename ) {
+        fprintf( stderr, "fatal error: missing required argument -T, tree name\n" );
+        return 1;
+    }
 
     struct btree_cached_record *cache = btree_make_cache( treename, "root", 1 );
 
