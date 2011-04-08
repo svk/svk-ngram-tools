@@ -14,6 +14,16 @@ struct btree_record {
     char filename[ FILENAME_SIZE ];
 };
 
-int64_t btree_lookup(const char *, const char *);
+struct btree_cached_record {
+    int n;
+    struct btree_record data[MAX_RECORDS];
+    struct btree_cached_record *cache_next[MAX_RECORDS];
+};
+
+void btree_free_cache( struct btree_cached_record* );
+
+struct btree_cached_record* btree_make_cache( const char*, const char *, int );
+
+int64_t btree_lookup(struct btree_cached_record *, const char *, const char *);
 
 #endif

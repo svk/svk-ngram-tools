@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 int main(int argc, char *argv[]) {
+    int retval = 0;
     int verbose = 0;
     while(1) {
         int c = getopt( argc, argv, "v" );
@@ -24,7 +25,9 @@ int main(int argc, char *argv[]) {
     }
     int argi = optind;
 
-    char *lustring = "14 - day Total Weight";
+    const char *treename = "mytree-uncompressed";
+
+    struct btree_cached_record *cache = btree_make_cache( treename, "root", 2 );
 
     char buffer[ TOKEN_SIZE ];
     while(1) {
@@ -39,11 +42,14 @@ int main(int argc, char *argv[]) {
             if( buflen == 1 ) break;
         } else {
             fprintf( stderr, "fatal error: input line too long\n" );
-            return 1;
+            retval = 1;
+            break;
         }
-        int64_t rv = btree_lookup( "mytree-uncompressed", buffer );
+        int64_t rv = btree_lookup( cache, treename, buffer );
         printf( "%s\t%lld\n", buffer, rv );
     }
 
-    return 0;
+    btree_free_cache( cache );
+
+    return retval;
 }

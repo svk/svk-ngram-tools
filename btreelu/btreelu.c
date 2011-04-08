@@ -20,7 +20,37 @@
  * 11 538 lookups per second, both with a total set size of about 300k
  * entries.
  *
- * No experiments on cached nodes yet, not even for the root node.
+ * (Numbers for cache include cache construction time, so they are actually
+ * slightly faster in the long run. 300k lookups were done for each
+ * experiment -- hitting each entry once.)
+ *
+ * Caching the root node only, with all uncompressed: 23 076 lookups
+ * per second, still mostly disk bound, reduction is mostly disk activity.
+ * Cache memory usage ~ 32 kilobytes.
+ *
+ * Caching the at depth 1, with all uncompressed: 39 473 lookups
+ * per second, still _mostly_ disk bound, reduction is mostly disk activity
+ * but also some CPU.
+ * Cache memory usage ~ 4 megabytes.
+ *
+ * Caching the at depth 2, with all uncompressed: 330 033 lookups
+ * per second. The tree is of height 2, so this eliminates disk activity
+ * during lookups. Note that we are still including cache construction time,
+ * including all the disk reads. 
+ * Cache memory usage ~ 516 megabytes (actually less since the entire tree
+ * is cached).
+ *
+ * The realistic model for bins is probably somewhere between depth 0 and
+ * depth 1 (caching the root node for all nodes, caching more for large
+ * bins). Some bins will be of height 2 but with lots of null nodes, these
+ * might be cached entirely just because it's approximately as cheap
+ * as caching depth 0.
+ *
+ * The realistic model for one huge B-tree is depth 2 on a normal computer
+ * and depth 3 (64 gigabytes) on a larger machine. Note that at depth 3 this
+ * method might be less than ideal, as this is actually more than enough
+ * enough memory to hold the entire compressed corpus in memory, but not
+ * nearly enough to hold the entire uncompressed, alignment-padded corpus.
  */
 
 #ifdef DEBUG_LOOKUP
@@ -29,76 +59,151 @@
 
 #ifdef SUPPORT_COMPRESSION
 #include <zlib.h>
+#define BTREE_FOPEN gzopen
+#define BTREE_FILE gzFile
+#define BTREE_FEOF gzeof
+#define BTREE_FCLOSE gzclose
 #else
 #include <stdio.h>
+#define BTREE_FILE FILE*
+#define BTREE_FOPEN fopen
+#define BTREE_FEOF feof
+#define BTREE_FCLOSE fclose
 #endif
 
-int64_t btree_lookup(const char *prefix, const char *token) {
+int btree_read_file( BTREE_FILE f, char* records) {
+    int bytesRead = 0;
+    int rrv;
+
+    do {
+#ifdef SUPPORT_COMPRESSION
+        rrv = gzread( f, &records[bytesRead], RECORD_SIZE * MAX_RECORDS - bytesRead );
+#else
+        rrv = fread( &records[bytesRead], 1, RECORD_SIZE * MAX_RECORDS - bytesRead, f );
+#endif
+        if( !rrv ) {
+            if( !BTREE_FEOF(f) ) {
+                return -1;
+            }
+            break;
+        }
+        bytesRead += rrv;
+    } while( bytesRead < RECORD_SIZE * MAX_RECORDS );
+    assert( bytesRead % RECORD_SIZE == 0 );
+
+    return bytesRead / RECORD_SIZE;
+}
+
+void btree_free_cache( struct btree_cached_record* cache ) {
+    for(int i=0;i<cache->n;i++) if( cache->cache_next[i] ) {
+        btree_free_cache( cache->cache_next[i] );
+    }
+    free( cache );
+}
+
+struct btree_cached_record* btree_make_cache( const char *prefix, const char *nodename, int depth ) {
+    struct btree_cached_record *rv = malloc(sizeof *rv);
+    char *filename = alloca( strlen(prefix) + strlen(nodename) + 1 );
+
+    strcpy( filename, prefix );
+    strcat( filename, "/" );
+    strcat( filename, nodename );
+
+    if( rv ) {
+        memset( rv, 0, sizeof *rv );
+
+        BTREE_FILE f = BTREE_FOPEN( filename, "rb" );
+        if( !f || (rv->n = btree_read_file( f, (char*) &rv->data ) ) < 0 ) {
+            fprintf( stderr, "fatal error: unable to allocate cache (file input error on %s)\n", nodename );
+            if( f ) BTREE_FCLOSE( f );
+            free( rv );
+            return 0;
+        }
+        BTREE_FCLOSE( f );
+
+        if( depth > 0 ) {
+            int i;
+            for(i=0;i<rv->n;i++) {
+                const char *fn = rv->data[i].filename;
+                if( strlen(fn) > 0 ) {
+                    rv->cache_next[i] = btree_make_cache( prefix, fn, depth - 1 );
+                    if( !rv->cache_next[i] ) {
+                        while( --i >= 0 ) {
+                            btree_free_cache( rv->cache_next[i] );
+                        }
+                        free( rv );
+                        return 0;
+                    }
+                }
+            }
+        }
+    } else {
+        fprintf( stderr, "fatal error: unable to allocate cache (out of memory)\n" );
+    }
+
+    return rv;
+}
+
+int64_t btree_lookup(struct btree_cached_record* cache, const char *prefix, const char *token) {
     const int prefixlen = strlen(prefix);
     const int filenamesize = prefixlen + 1 + FILENAME_SIZE;
     int rv = 0;
     int ok = 0;
 
+
     char *filename = alloca( filenamesize );
-    struct btree_record* records = malloc( sizeof *records * MAX_RECORDS );
-    if( !records ) {
+    struct btree_record* localbuf = malloc( sizeof *localbuf * MAX_RECORDS );
+    if( !localbuf ) {
         return -1;
     }
+
+    struct btree_record* records = 0;
 
     memset( filename, 0, prefixlen );
     strcpy( filename, prefix );
     strcat( filename, "/root" );
     char *tailname = &filename[ prefixlen + 1 ];
 
-    assert( sizeof *records == RECORD_SIZE );
+    assert( sizeof *localbuf == RECORD_SIZE );
 
     do {
         int bytesRead = 0, rrv, recordsRead;
 
-#ifdef SUPPORT_COMPRESSION
-        gzFile f = gzopen( filename, "rb" );
-#define BTREE_LOOKUP_FEOF gzeof
-#define BTREE_LOOKUP_FCLOSE gzclose
-#else
-        FILE *f = fopen( filename, "rb" );
-#define BTREE_LOOKUP_FEOF feof
-#define BTREE_LOOKUP_FCLOSE fclose
-#endif
-        if( !f ) {
-            if( !strcmp( tailname, "root") ) {
-                rv = 0;
-            } else {
-                rv = -1;
-            }
-            BTREE_LOOKUP_FCLOSE(f);
-            break;
-        }
+        if( cache ) {
 #ifdef DEBUG_LOOKUP
-        fprintf( stderr, "lookup: opened \"%s\"\n", tailname );
+            fprintf( stderr, "lookup: opening cached node %p\n", cache );
 #endif
+            recordsRead = cache->n;
+            records = cache->data;
+        } else {
+            records = localbuf;
 
-        do {
-#ifdef SUPPORT_COMPRESSION
-            rrv = gzread( f, &records[bytesRead], RECORD_SIZE * MAX_RECORDS - bytesRead );
-#else
-            rrv = fread( &records[bytesRead], 1, RECORD_SIZE * MAX_RECORDS - bytesRead, f );
+#ifdef DEBUG_LOOKUP
+            fprintf( stderr, "lookup: opening \"%s\"\n", tailname );
 #endif
-            if( !rrv ) {
-                if( !BTREE_LOOKUP_FEOF(f) ) {
-                    BTREE_LOOKUP_FCLOSE(f);
-                    free( records );
-                    return -1;
+            BTREE_FILE f = BTREE_FOPEN( filename, "rb" );
+            if( !f ) {
+                if( !strcmp( tailname, "root") ) {
+                    rv = 0;
+                } else {
+                    rv = -1;
                 }
                 break;
             }
-            bytesRead += rrv;
-        } while( bytesRead < RECORD_SIZE * MAX_RECORDS );
-        assert( bytesRead % RECORD_SIZE == 0 );
 
-        recordsRead = bytesRead / RECORD_SIZE;
+            recordsRead = btree_read_file( f, (char*) records );
+
 #ifdef DEBUG_LOOKUP
-        fprintf( stderr, "lookup: read %d records\n", recordsRead );
+            fprintf( stderr, "lookup: read %d records\n", recordsRead );
 #endif
+            BTREE_FCLOSE(f);
+
+            if( recordsRead < 0 ) {
+                rv = -1;
+                break;
+            }
+        }
+
 
         int mn = 0, mx = recordsRead - 1;
         int debug_loops = 0;
@@ -109,7 +214,7 @@ int64_t btree_lookup(const char *prefix, const char *token) {
 
             int cr = strcmp( token, records[mp].token );
 #ifdef DEBUG_LOOKUP
-        fprintf( stderr, "lookup: [%d, %d, %d] -> %d\n", mn, mp, mx, cr );
+        fprintf( stderr, "lookup: [\"%s\" -- \"%s\"] [%d, %d, %d] -> %d\n", token, records[mp].token, mn, mp, mx, cr );
 #endif
 
             if( cr < 0 ) {
@@ -139,13 +244,16 @@ int64_t btree_lookup(const char *prefix, const char *token) {
             rv = 0;
             ok = 1;
         } else {
-            strcpy( tailname, records[mn].filename );
+            if( cache ) {
+                cache = cache->cache_next[mn];
+            }
+            if( !cache ) {
+                strcpy( tailname, records[mn].filename );
+            }
 #ifdef DEBUG_LOOKUP
             fprintf( stderr, "lookup: next file is \"%s\"\n", tailname);
 #endif
         }
-
-        BTREE_LOOKUP_FCLOSE( f );
 
 #ifdef DEBUG_LOOKUP
             fprintf( stderr, "ok: %d\n", ok);
@@ -156,7 +264,7 @@ int64_t btree_lookup(const char *prefix, const char *token) {
             fprintf( stderr, "goodbye!\n" );
 #endif
 
-    free( records );
+    free( localbuf );
     return rv;
 #undef BTREE_LOOKUP_FCLOSE
 }
