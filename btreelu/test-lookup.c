@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 
     const char *treename = "mytree-uncompressed";
 
-    struct btree_cached_record *cache = btree_make_cache( treename, "root", 2 );
+    struct btree_cached_record *cache = btree_make_cache( treename, "root", 1 );
 
     char buffer[ TOKEN_SIZE ];
     while(1) {
