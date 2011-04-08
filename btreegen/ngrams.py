@@ -1,7 +1,7 @@
 # n-grams must be in proper format -- lines separated
 # with newlines, n-gram from count by a single tab character,
-# tokens by a single space character, either compressed with
-# gzip or uncompressed. (This is the format of the Google files.)
+# tokens by a single space character, compressed with
+# gzip. (This is the format of the Google files.)
 
 class NgramReader:
     def __init__(self, f):
