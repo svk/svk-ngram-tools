@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 
     int64_t rv = btree_lookup( "mytree", lustring );
 
-    printf( "%s\t%lld\n", rv );
+    printf( "%s\t%lld\n", lustring, rv );
 
     return 0;
 }
