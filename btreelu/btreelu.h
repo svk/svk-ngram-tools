@@ -1,9 +1,9 @@
 #ifndef H_BTREELU
 #define H_BTREELU
 
-#define TOKEN_SIZE 240
+#define TOKEN_SIZE 232
 #define MAX_RECORDS 128
-#define FILENAME_SIZE 8
+#define FILENAME_SIZE 16
 #define RECORD_SIZE 256
 
 #include <stdint.h>

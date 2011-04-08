@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     }
     int argi = optind;
 
-    const char *treename = "mytree-uncompressed";
+    const char *treename = "mytree3";
 
     struct btree_cached_record *cache = btree_make_cache( treename, "root", 1 );
 

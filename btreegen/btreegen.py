@@ -4,39 +4,61 @@
 from ngrams import NgramReader
 from struct import pack
 
+class DirectoryNamer:
+    def __init__(self, n, digits): # produces strings of length (n + digits), plus need one more for nul
+        assert n < digits
+        self.n = n
+        self.digits = digits
+        self.fmt = "%%0%dd" % self.digits
+    def __call__(self, k):
+        s = self.fmt % k
+        return "/".join( [ s[-(i+1)] for i in range(self.n) ] + [ s[:-self.n] ] )
+
+SimpleFileNamer = lambda n : "%d" % n
+
+UseGzip = False
 RecordSize = 256
-MaxTokenSize = 240 # longest 5-gram + spaces is 204 (?)
-TokenNameTemplate = "%07d"
-TokenNameMaxLength = 8
+MaxTokenSize = 232 # longest 5-gram + spaces is 204 (.) (Note we need one more for NUL)
+TokenNameTemplate = DirectoryNamer( 2, 4 )
+TokenNameLength = 16 # need one more for NUL, for convenience
 FirstTokenId = 1
-MaxEntriesInNode = 128 # low for testing, 128-ish is a reasonable value
+MaxEntriesInNode = 128 # 128-ish is a reasonable value -- may want to tweak so we can cache an appropriate amount
 
 NextTokenId = FirstTokenId
-EntryPacker = "=%dsQ%ds" % (MaxTokenSize, TokenNameMaxLength)
+EntryPacker = "=%dsQ%ds" % (MaxTokenSize, TokenNameLength)
 
-assert (MaxTokenSize + 8 + TokenNameMaxLength) == RecordSize
+assert (MaxTokenSize + 8 + TokenNameLength) == RecordSize
 
 class TreeNode:
-    def __init__(self, openFile):
-        global NextTokenId
-        self.id = NextTokenId
-        NextTokenId = self.id + 1
-        self.name = TokenNameTemplate % self.id
+    def __init__(self, dirname, openFile):
         self.parent = None
-        self.entries = []
         self.openFile = openFile
+        self.dirname = dirname
+        self.clear()
     def clear(self):
         global NextTokenId
         self.id = NextTokenId
         NextTokenId = self.id + 1
-        self.name = TokenNameTemplate % self.id
+        self.name = TokenNameTemplate( self.id )
         self.entries = []
     def headerentry(self):
         return self.entries[0][:-1] + (self.name,)
     def write(self):
-        f = self.openFile( self.name )
+        from os import path, makedirs
+        import errno
+        fullname = "%s/%s" % (self.dirname, self.name)
+        dirname, _ = path.split( fullname )
+        print dirname, "was dirname"
+        try:
+            makedirs( dirname )
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                pass
+            else:
+                raise
+        f = self.openFile( fullname, "wb" )
         for entry in self.entries:
-            assert( len( self.name ) < TokenNameMaxLength )
+            assert( len( self.name ) < TokenNameLength )
             print entry
             rawentry = pack( EntryPacker, *entry )
             assert( len(rawentry) <= RecordSize )
@@ -49,7 +71,7 @@ class TreeNode:
         if self.full():
             self.write()
             if not self.parent:
-                self.parent = TreeNode( self.openFile )
+                self.parent = TreeNode( self.dirname, self.openFile )
             self.parent.add( self.headerentry() )
             self.clear()
     def finalize(self):
@@ -65,11 +87,11 @@ if __name__ == '__main__':
     from sys import argv
     import gzip
 
-    dir = argv[1]
+    dirname = argv[1]
     files = argv[2:]
-    print dir, files
+    print dirname, files
 
-    node = TreeNode( lambda s : gzip.open( "%s/%s" % (dir,s), "wb" )  )
+    node = TreeNode( dirname, gzip.open if UseGzip else open)
 
     for filename in files:
         f = gzip.open( filename, "rb" )
