@@ -9,8 +9,6 @@
 #include <alloca.h>
 #include <zlib.h>
 
-#define DEBUG_LOOKUP
-
 #ifdef DEBUG_LOOKUP
 #include <stdio.h>
 #endif
@@ -36,8 +34,6 @@ int64_t btree_lookup(const char *prefix, const char *token) {
 
     do {
         int bytesRead = 0, rrv, recordsRead;
-        int rv;
-        int ok = 0;
 
         gzFile f = gzopen( filename, "rb" );
         if( !f ) {
@@ -63,9 +59,9 @@ int64_t btree_lookup(const char *prefix, const char *token) {
                 }
                 break;
             }
-            rrv += bytesRead;
+            bytesRead += rrv;
         } while(1);
-        assert( recordsRead % RECORD_SIZE == 0 );
+        assert( bytesRead % RECORD_SIZE == 0 );
 
         recordsRead = bytesRead / RECORD_SIZE;
 #ifdef DEBUG_LOOKUP
@@ -100,7 +96,7 @@ int64_t btree_lookup(const char *prefix, const char *token) {
 
         if( !strcmp( token, records[mn].token ) ) {
 #ifdef DEBUG_LOOKUP
-            fprintf( stderr, "lookup: exact match, returning\n");
+            fprintf( stderr, "lookup: exact match %llu, returning\n", records[mn].weight);
 #endif
             rv = records[mn].weight;
             ok = 1;
@@ -118,7 +114,15 @@ int64_t btree_lookup(const char *prefix, const char *token) {
         }
 
         gzclose( f );
+
+#ifdef DEBUG_LOOKUP
+            fprintf( stderr, "ok: %d\n", ok);
+#endif
     } while(!ok);
+
+#ifdef DEBUG_LOOKUP
+            fprintf( stderr, "goodbye!\n" );
+#endif
 
     free( records );
     return rv;

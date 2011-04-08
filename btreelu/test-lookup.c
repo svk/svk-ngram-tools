@@ -26,9 +26,24 @@ int main(int argc, char *argv[]) {
 
     char *lustring = "14 - day Total Weight";
 
-    int64_t rv = btree_lookup( "mytree", lustring );
+    char buffer[ TOKEN_SIZE ];
+    while(1) {
+        char *buf = fgets( buffer, TOKEN_SIZE, stdin );
+        if( !buf ) break;
 
-    printf( "%s\t%lld\n", lustring, rv );
+        int buflen = strlen( buffer );
+        if( buflen == 0 ) {
+            break;
+        } else if( buffer[buflen-1] == '\n' ) {
+            buffer[buflen-1] = '\0';
+            if( buflen == 1 ) break;
+        } else {
+            fprintf( stderr, "fatal error: input line too long\n" );
+            return 1;
+        }
+        int64_t rv = btree_lookup( "mytree", buffer );
+        printf( "%s\t%lld\n", buffer, rv );
+    }
 
     return 0;
 }
