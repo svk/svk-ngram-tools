@@ -9,6 +9,12 @@
 #include <alloca.h>
 #include <zlib.h>
 
+#define DEBUG_LOOKUP
+
+#ifdef DEBUG_LOOKUP
+#include <stdio.h>
+#endif
+
 int64_t btree_lookup(const char *prefix, const char *token) {
     const int prefixlen = strlen(prefix);
     const int filenamesize = prefixlen + 1 + FILENAME_SIZE;
