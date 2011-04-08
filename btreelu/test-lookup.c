@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
             fprintf( stderr, "fatal error: input line too long\n" );
             return 1;
         }
-        int64_t rv = btree_lookup( "mytree", buffer );
+        int64_t rv = btree_lookup( "mytree-uncompressed", buffer );
         printf( "%s\t%lld\n", buffer, rv );
     }
 

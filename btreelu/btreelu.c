@@ -7,9 +7,29 @@
 #include <stdlib.h>
 
 #include <alloca.h>
-#include <zlib.h>
+
+/* Defining SUPPORT_COMPRESSION uses zlib which autodetects whether
+ * a file is compressed or not. However, this uses a little CPU,
+ * and without SUPPORT_COMPRESSION the lookup uses very little CPU,
+ * so it's wise to leave this undefined if none of the files
+ * actually are compressed.
+ *
+ * From my tests, with all files compressed the lookup is almost completely
+ * CPU bound and runs at about 893 lookups per second, with all files
+ * uncompressed it is almost completely disk bound and runs at about
+ * 11 538 lookups per second, both with a total set size of about 300k
+ * entries.
+ *
+ * No experiments on cached nodes yet, not even for the root node.
+ */
 
 #ifdef DEBUG_LOOKUP
+#include <stdio.h>
+#endif
+
+#ifdef SUPPORT_COMPRESSION
+#include <zlib.h>
+#else
 #include <stdio.h>
 #endif
 
@@ -35,14 +55,22 @@ int64_t btree_lookup(const char *prefix, const char *token) {
     do {
         int bytesRead = 0, rrv, recordsRead;
 
+#ifdef SUPPORT_COMPRESSION
         gzFile f = gzopen( filename, "rb" );
+#define BTREE_LOOKUP_FEOF gzeof
+#define BTREE_LOOKUP_FCLOSE gzclose
+#else
+        FILE *f = fopen( filename, "rb" );
+#define BTREE_LOOKUP_FEOF feof
+#define BTREE_LOOKUP_FCLOSE fclose
+#endif
         if( !f ) {
             if( !strcmp( tailname, "root") ) {
                 rv = 0;
             } else {
                 rv = -1;
             }
-            gzclose(f);
+            BTREE_LOOKUP_FCLOSE(f);
             break;
         }
 #ifdef DEBUG_LOOKUP
@@ -50,17 +78,21 @@ int64_t btree_lookup(const char *prefix, const char *token) {
 #endif
 
         do {
+#ifdef SUPPORT_COMPRESSION
             rrv = gzread( f, &records[bytesRead], RECORD_SIZE * MAX_RECORDS - bytesRead );
+#else
+            rrv = fread( &records[bytesRead], 1, RECORD_SIZE * MAX_RECORDS - bytesRead, f );
+#endif
             if( !rrv ) {
-                if( !gzeof(f) ) {
-                    gzclose(f);
+                if( !BTREE_LOOKUP_FEOF(f) ) {
+                    BTREE_LOOKUP_FCLOSE(f);
                     free( records );
                     return -1;
                 }
                 break;
             }
             bytesRead += rrv;
-        } while(1);
+        } while( bytesRead < RECORD_SIZE * MAX_RECORDS );
         assert( bytesRead % RECORD_SIZE == 0 );
 
         recordsRead = bytesRead / RECORD_SIZE;
@@ -113,7 +145,7 @@ int64_t btree_lookup(const char *prefix, const char *token) {
 #endif
         }
 
-        gzclose( f );
+        BTREE_LOOKUP_FCLOSE( f );
 
 #ifdef DEBUG_LOOKUP
             fprintf( stderr, "ok: %d\n", ok);
@@ -126,4 +158,5 @@ int64_t btree_lookup(const char *prefix, const char *token) {
 
     free( records );
     return rv;
+#undef BTREE_LOOKUP_FCLOSE
 }
