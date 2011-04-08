@@ -1,6 +1,6 @@
 #include "bins.h"
 
-#include "freegetopt-0.11/getopt.h"
+#include "../lib/freegetopt-0.11/getopt.h"
 
 #include <stdio.h>
 #include <stdlib.h>

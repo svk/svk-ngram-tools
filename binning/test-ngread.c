@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "freegetopt-0.11/getopt.h"
+#include "../lib/freegetopt-0.11/getopt.h"
 #include "ngread.h"
 
 #include <stdlib.h>
