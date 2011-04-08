@@ -53,6 +53,8 @@ class TreeNode:
             self.parent.add( self.headerentry() )
             self.clear()
     def finalize(self):
+        if not self.parent:
+            self.name = "root"
         self.write()
         if self.parent:
             self.parent.add( self.headerentry() )
