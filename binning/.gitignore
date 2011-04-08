@@ -1,0 +1,7 @@
+*.o
+btprint
+test-bins
+test-ngread
+mkbins
+test-binsize
+showbin

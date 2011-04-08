@@ -45,6 +45,18 @@ int main(int argc, char* argv[]) {
     }
     int argi = optind;
 
+
+    int *selcat = malloc(sizeof *selcat * N);
+    for(int k=0;k<N;k++) {
+        if( (k+argi) >= argc ) {
+            fprintf( stderr, "fatal error: not enough arguments provided (n-gram bin)\n" );
+            return 1;
+        }
+        selcat[k] = atoi( argv[k+argi] );
+    }
+
+    argi += N;
+
     if( N < 0 ) {
         fprintf( stderr, "fatal error: input argument -n (length of n-grams) missing\n" );
         return 1;
@@ -56,19 +68,6 @@ int main(int argc, char* argv[]) {
     }
     struct bin_table *bt = bintable_read_fn( TFN );
 
-    long long *histogram = 0;
-    long long memreq = sizeof *histogram * ipow( bt->no_bins, N );
-    if( memreq > (10 * 1024 * 1024) && !confirmed ) {
-        fprintf( stderr, "fatal error: need %lld bytes of memory for histogram, confirm with -c\n", memreq );
-        return 1;
-    }
-
-    histogram = malloc( memreq );
-    if( !histogram ) {
-        fprintf( stderr, "fatal error: unable to allocate %lld bytes of memory for histogram\n", memreq );
-        return 1;
-    }
-    memset( histogram, 0, memreq );
 
     if( verbose ) {
         fprintf( stderr, "Parameters:\n" );
@@ -77,7 +76,6 @@ int main(int argc, char* argv[]) {
         for(int j=argi;j<argc;j++) {
             fprintf( stderr, "\t\t\"%s\"\n", argv[j] );
         }
-        fprintf( stderr, "\t%lld bytes of memory required for histogram\n", memreq );
     }
 
     long long processed = 0;
@@ -92,11 +90,20 @@ int main(int argc, char* argv[]) {
                 exit(1);
             }
             long long index = 0;
+            int nodisplay = 0;
             for(int k=0;k<N;k++) {
-                index *= bt->no_bins;
-                index += bt_classify( bt, ngr_s_col( ngrf, k ) );
+                if( selcat[k] != bt_classify( bt, ngr_s_col( ngrf, k ) ) ) {
+                    nodisplay = 1;
+                    break;
+                }
             }
-            histogram[ index ]++;
+            if( !nodisplay ) {
+                for(int k=0;k<N;k++) {
+                    if( k ) fputs( " ", stdout );
+                    fputs( ngr_s_col( ngrf, k ), stdout );
+                }
+                fputs( "\n", stdout );
+            }
             ++processed;
         }
         ngr_free(ngrf);
@@ -106,28 +113,8 @@ int main(int argc, char* argv[]) {
         fprintf( stderr, "%lld %d-grams processed.\n", processed, N );
     }
 
-    int *xs = malloc(sizeof *xs * N );
-    assert( xs );
-
-    long long maxindex = ipow( bt->no_bins, N );
-    for(long long j=0;j<maxindex;j++) {
-        long long index = j;
-        long long val = histogram[index];
-        printf( "%lld", val );
-        for(int k=0;k<N;k++) {
-            int x = index % bt->no_bins;
-            index /= bt->no_bins;
-            xs[ N-1-k ] = x;
-        }
-        for(int k=0;k<N;k++) {
-            printf( "\t%d", xs[k] );
-        }
-        printf( "\n" );
-    }
-
     free_bintable( bt );
-
-    free( xs );
+    free(selcat);
 
     return 0;
 }

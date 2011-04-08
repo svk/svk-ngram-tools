@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <assert.h>
+
 struct bin_cons* make_bincons(long long total_count, int no_bins) {
     struct bin_cons *rv = malloc(sizeof *rv);
     if( rv ) {
@@ -154,9 +156,30 @@ int bincons_write(struct bin_cons *bc, FILE* f) {
 }
 
 int bt_classify(struct bin_table* bt, const char* s) {
+    int loops = 0;
     int mn = 0, mx = bt->no_bins - 1;
     while( mn != mx ) {
-        int mp = (mn+mx)/2;
+        int mp = (mn+mx+1)/2;
         assert( mn < mx );
+
+        int cr = strcmp( s, bt->entries[mp] );
+
+        if( cr < 0 ) {
+            mx = mp - 1;
+        } else if( cr >= 0 ) {
+            mn = mp;
+        }
+
+        ++loops;
+        assert( loops < 1000 );
     }
+    return mn;
+}
+
+struct bin_table* bintable_read_fn(const char *fn) {
+    FILE *f = fopen( fn, "rb" );
+    if( !f ) return 0;
+    struct bin_table *rv = bintable_read( f );
+    fclose( f );
+    return rv;
 }
