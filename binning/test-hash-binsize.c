@@ -16,15 +16,16 @@ int hash_classify( const int no_bins, const char *s ) {
     // Note that we probably don't need all the quality of SHA1,
     // a further optimization is swapping it out for a non-secure
     // but quicker hash with approximately as good a distribution.
-    uint8_t digest[20];
-    const uint32_t *u32p = (uint32_t*)digest;
+    // done: this is FNV-1a
+    const uint32_t p = 16777619;
     const uint32_t bs = (0xffffffffl / (long long unsigned) no_bins);
-    SHA1_CTX sha1;
-    SHA1_Init( &sha1 );
-    SHA1_Update( &sha1, s, strlen( s ) );
-    SHA1_Final( &sha1, digest );
-    int rv = (*u32p / bs) % no_bins;
-    return rv;
+    const uint8_t *x = (const uint8_t*) s;
+    uint32_t h = 2166136261;
+    while( *x != '\0' ) {
+        h ^= *x++;
+        h *= p;
+    }
+    return (h / bs) % no_bins;
 }
 
 long long ipow(long long a, long long b) {
