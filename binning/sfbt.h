@@ -28,15 +28,15 @@
    we skip over the maximum amount of bytes a record
    might take, once, in the beginning.
 
-   No merging nor validation is performed.
+   Neither merging nor validation is performed.
 */
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 #define GLOBAL_OFFSET_SIZE 4
 #define MAX_KEY_SIZE 256 // includes nul
-#define KEYS_PER_RECORD 64
+#define KEYS_PER_RECORD 8
 #define KEY_ALIGNMENT 4
 #define KEY_OFFSET_SIZE 2
 #define COUNT_SIZE 8
@@ -82,8 +82,13 @@ int sfbt_flush_record( struct sfbt_wctx*);
 int sfbt_finalize( struct sfbt_wctx*);
 int sfbt_write_root( struct sfbt_wctx*);
 int sfbt_write_parents( struct sfbt_wctx*);
-int sfbt_collect_children( struct sfbt_wctx*);
+int sfbt_collect_children( struct sfbt_wctx*,long);
 int sfbt_write_collected_node( struct sfbt_wctx*);
 int sfbt_check_last_child_gen_at( struct sfbt_wctx*, long);
+
+struct sfbt_wctx *sfbt_new_wctx(const char *);
+int sfbt_close_wctx(struct sfbt_wctx*);
+
+
 
 #endif
