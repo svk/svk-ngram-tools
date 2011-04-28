@@ -25,6 +25,9 @@ test-bins: test-bins.o bins.o $(GETOPTDIR)/getopt.o
 test-binsize: test-binsize.o bins.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
+test-hash-binsize: test-hash-binsize.o sha1.o bins.o ngread.o $(GETOPTDIR)/getopt.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+
 test-ngread: test-ngread.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
