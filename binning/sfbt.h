@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "semifile.h"
 
 /* Single-file B-tree.
 
@@ -66,14 +67,14 @@ union sfbt_record_buffer {
 };
 
 struct sfbt_wctx {
-    FILE *f;
+    SEMIFILE* f;
     char filename[ MAX_SFBT_FILENAME_LEN ];
     long current_pos;
 
     long current_generation_foffset;
 
     struct sfbt_record_header current_header;
-    fpos_t current_header_pos;
+    semifile_fpos_t current_header_pos;
     uint16_t local_offset;
 
     int collected_children;
@@ -89,9 +90,6 @@ union sfbt_entry_suffix {
     int64_t count; // in leaf
     uint32_t offset; // in internal node
 };
-
-int sfbt_desuspend_wctx( struct sfbt_wctx* );
-int sfbt_suspend_wctx( struct sfbt_wctx* );
 
 int sfbt_add_entry( struct sfbt_wctx*, const char *, int64_t);
 int sfbt_new_leaf_record( struct sfbt_wctx*);
