@@ -16,6 +16,12 @@ clean:
 showbin: showbin.o bins.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
+hashbins-to-sfbt: hashbins-to-sfbt.o hashbin.o sfbt.o ngread.o $(GETOPTDIR)/getopt.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+
+sfbt-hashbins-lookup: sfbt-hashbins-lookup.o hashbin.o sfbt.o ngread.o $(GETOPTDIR)/getopt.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+
 btprint: btprint.o bins.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 

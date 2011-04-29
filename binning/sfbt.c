@@ -304,6 +304,11 @@ int sfbt_find_index(union sfbt_record_buffer* buf, const char* key, int exact) {
 int sfbt_search(struct sfbt_rctx* rctx, const char* key, int64_t* count_out) {
     struct sfbt_cached_record *cache = rctx->root;
     union sfbt_record_buffer *node = (union sfbt_record_buffer*) cache->data;
+
+    if( rctx->suspend ) {
+        if( sfbt_desuspend_rctx( rctx ) ) return 1;
+    }
+
     while( !node->header.entries_are_leaves ) {
         int index = sfbt_find_index( (union sfbt_record_buffer*) node, key, 0 );
         if( index < 0 ) return 1;
@@ -327,6 +332,11 @@ int sfbt_search(struct sfbt_rctx* rctx, const char* key, int64_t* count_out) {
         int64_t* countp = (int64_t*) &s[strlen(s)+1];
         *count_out = *countp;
     }
+
+    if( rctx->suspend ) {
+        if( sfbt_suspend_rctx( rctx ) ) return 1;
+    }
+
     return 0;
 }
 
@@ -399,6 +409,9 @@ int sfbt_open_rctx(const char *filename, struct sfbt_rctx* rctx, int depth) {
         rctx->root = sfbt_cache_node( rctx, depth );
         if( !rctx->root ) break;
 
+        assert( strlen( rctx->filename ) < MAX_SFBT_FILENAME_LEN );
+        strcpy( rctx->filename, filename );
+
         return 0;
     } while(0);
     if( rctx->root ) {
@@ -409,7 +422,30 @@ int sfbt_open_rctx(const char *filename, struct sfbt_rctx* rctx, int depth) {
 }
 
 int sfbt_close_rctx(struct sfbt_rctx* rctx) {
-    fclose( rctx->f );
+    if( rctx->f ) {
+        fclose( rctx->f );
+        rctx->f = 0;
+    }
+    return 0;
+}
+
+int sfbt_suspend_rctx(struct sfbt_rctx* rctx) {
+    rctx->suspend = 1; // note asymmetry!
+
+    if( rctx->f ) {
+        fclose( rctx->f );
+        rctx->f = 0;
+    }
+
+    return 0;
+}
+
+int sfbt_desuspend_rctx(struct sfbt_rctx* rctx) {
+    if( !rctx->f ) {
+        rctx->f = fopen( rctx->filename, "rb" );
+        if( !rctx->f ) return 1;
+    }
+
     return 0;
 }
 
@@ -419,6 +455,7 @@ int main(int argc, char *argv[]) {
     fprintf( stderr, "%d %d\n", sizeof my, RECORD_HEADER_SIZE );
     fprintf( stderr, "%d\n", MAX_RECORD_SIZE );
     fprintf( stderr, "%d\n", TYPICAL_RECORD_SIZE );
+    fprintf( stderr, "wctx size %d\n", sizeof (struct sfbt_wctx) );
 
     struct sfbt_wctx *wctx = sfbt_new_wctx( "my.test.sfbt" );
     assert( wctx );

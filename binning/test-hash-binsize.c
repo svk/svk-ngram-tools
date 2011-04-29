@@ -13,46 +13,7 @@
 #include <stdint.h>
 
 int hash_classify( const int no_bins, const char *s ) {
-    // Note that we probably don't need all the quality of SHA1,
-    // a further optimization is swapping it out for a non-secure
-    // but quicker hash with approximately as good a distribution.
-    // done: this is FNV-1a
-    // fix: FNV is terrible for this (measure by size of largest bin), trying murmur
-    // results, murmur seems to work almost as well as SHA1 and is obv much much faster
-    int len = strlen(s);
-
-    const uint32_t m = 0x5bd1e995;
-    const int r = 24;
-    uint32_t h = 0x12345678 ^ len;
-
-    const uint8_t *p = (const uint8_t*) s;
-
-    const uint32_t bs = (0xffffffffl / (unsigned long long) no_bins);
-
-
-    while( len >= 4 ) {
-        uint32_t k = *(uint32_t*)p;
-        k *= m;
-        k ^= k >> r;
-        k *= m;
-        h *= m;
-        h ^= k;
-        p += 4;
-        len -= 4;
-    }
-
-    switch(len) {
-        case 3: h ^= p[2] << 16;
-        case 2: h ^= p[1] << 8;
-        case 1: h ^= p[0];
-                h *= m;
-    }
-
-    h ^= h >> 13;
-    h *= m;
-    h ^= h >> 15;
-
-    return (h / bs) % no_bins;
+    return classify_uint32( no_bins, murmur_hash( s, strlen(s) ) );
 }
 
 long long ipow(long long a, long long b) {

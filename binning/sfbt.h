@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+
 /* Single-file B-tree.
 
    Note that this file is intentionally not compressed;
@@ -49,6 +50,8 @@
 #define TYPICAL_ENTRY_SIZE (60 + ENTRY_SUFFIX_SIZE)
 #define TYPICAL_RECORD_SIZE (RECORD_HEADER_SIZE + TYPICAL_ENTRY_SIZE * KEYS_PER_RECORD)
 
+#define MAX_SFBT_FILENAME_LEN 1024
+
 struct sfbt_record_header {
     uint32_t record_size; // includes this header and this field
     uint32_t entries;
@@ -75,7 +78,9 @@ struct sfbt_wctx {
     char child_first_key[ KEYS_PER_RECORD ][ MAX_KEY_SIZE ];
     uint32_t child_offset[ KEYS_PER_RECORD ];
 
+#ifdef DEBUG
     char debug_last_key[ MAX_ENTRY_SIZE ];
+#endif
 };
 
 union sfbt_entry_suffix {
@@ -103,6 +108,9 @@ struct sfbt_cached_record {
 
 struct sfbt_rctx {
     FILE *f;
+    char filename[ MAX_SFBT_FILENAME_LEN ];
+    
+    int suspend;
 
     struct sfbt_cached_record *root;
 
@@ -119,5 +127,8 @@ int sfbt_open_rctx(const char*, struct sfbt_rctx*, int);
 int sfbt_close_rctx(struct sfbt_rctx*);
 int sfbt_readnode(struct sfbt_rctx*, union sfbt_record_buffer* );
 int sfbt_search(struct sfbt_rctx*, const char*, int64_t*);
+
+int sfbt_suspend_rctx(struct sfbt_rctx*);
+int sfbt_desuspend_rctx(struct sfbt_rctx*);
 
 #endif
