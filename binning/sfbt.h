@@ -67,6 +67,8 @@ union sfbt_record_buffer {
 
 struct sfbt_wctx {
     FILE *f;
+    char filename[ MAX_SFBT_FILENAME_LEN ];
+    long current_pos;
 
     long current_generation_foffset;
 
@@ -87,6 +89,9 @@ union sfbt_entry_suffix {
     int64_t count; // in leaf
     uint32_t offset; // in internal node
 };
+
+int sfbt_desuspend_wctx( struct sfbt_wctx* );
+int sfbt_suspend_wctx( struct sfbt_wctx* );
 
 int sfbt_add_entry( struct sfbt_wctx*, const char *, int64_t);
 int sfbt_new_leaf_record( struct sfbt_wctx*);

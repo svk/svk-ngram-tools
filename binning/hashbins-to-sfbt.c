@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
         }
         histogram[j] = sfbt_new_wctx( filename );
         if( !histogram[j] ) {
-            fprintf( stderr, "fatal error: out of memory\n" );
+            fprintf( stderr, "fatal error: failed to construct #%d wctx (%s)\n", j, filename );
             return 1;
         }
     }

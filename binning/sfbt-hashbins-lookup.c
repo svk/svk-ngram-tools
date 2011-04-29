@@ -155,7 +155,9 @@ int main(int argc, char* argv[]) {
         strcpy( keybuf, key );
         char *colkey = strtok( buffer, " \t" );
         int index = 0;
-        for(int i=0;i<N;i++) {
+        int i;
+        for(i=0;i<N;i++) {
+            if( !colkey ) break;
 			int n = classify_uint32( no_bins, murmur_hash( colkey, strlen(colkey) ) );
             index *= no_bins;
             index += n;
@@ -165,6 +167,10 @@ int main(int argc, char* argv[]) {
 			}
 #endif
             colkey = strtok( 0, " \t" );
+        }
+        if( i != N ) {
+            fprintf( stderr, "warning: input \"%s\" invalid (not enough columns), ignoring\n", keybuf );
+            continue;
         }
 		if( verbose ) {
 			fprintf( stderr, "Classified \"%s\" as %d (%s)\n", keybuf, index, histogram[index].filename );
