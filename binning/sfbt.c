@@ -88,7 +88,6 @@ int sfbt_collect_children( struct sfbt_wctx* wctx, long stop_pos ) {
                 return 1;
             }
             if( fread( &buffer[4], *recsize - 4, 1, wctx->f ) != 1 ) {
-                fprintf( stderr, "%p at %d promised a record size of %u, did not deliver\n", wctx, foffset, *recsize );
                 return 1;
             }
 
@@ -138,12 +137,16 @@ int sfbt_write_root( struct sfbt_wctx* wctx ) {
     do {
         long t = ftell( wctx->f );
         if( fseek( wctx->f, wctx->current_generation_foffset, SEEK_SET ) ) break;
-            fprintf( stderr, "collecting children for root\n" );
         if(sfbt_collect_children( wctx, t )) break;
         if( !wctx->collected_children ) {
+            // should maybe fix this, but it is low-priority because it is not
+            // necessary in the binning scheme: if the bin is empty, not
+            // ... [logic fail. it is necessary. TODO]
+            // [ besides, if I'm experiencing empty bins at all with the hashing
+            //   scheme, that's highly likely to be a bug and so a warning is
+            //   useful. ]
             fprintf( stderr, "warning: %s is empty and is left invalid\n", wctx->filename );
         } else {
-            fprintf( stderr, "%p has %d root children\n", wctx, wctx->collected_children );
             rewind( wctx->f );
             if(sfbt_write_collected_node( wctx )) break;
         }
@@ -174,26 +177,9 @@ int sfbt_flush_record( struct sfbt_wctx* wctx ) {
 
         assert( sizeof wctx->current_header == RECORD_HEADER_SIZE );
 
-        fprintf( stderr, "in %p, local offset is %d\n", wctx, (int) wctx->local_offset );
-        fprintf( stderr, "in %p at %ld, flushing with record size %d\n", wctx, ftell(wctx->f), wctx->local_offset );
         wctx->current_header.record_size = wctx->local_offset;
 
-#if 0
-            if( wctx->current_header.record_size == 268 ) {
-                fprintf( stderr, "DEBUGGING CODE WRITING SOMETHING ELSE AT %ld.\n", ftell(wctx->f) );
-                fprintf( stderr, "%d\n", fseek( wctx->f, 3, SEEK_SET ) );
-                fprintf( stderr, "DEBUGGING CODE WRITING SOMETHING ELSE AT %ld.\n", ftell(wctx->f) );
-                const char *s = "hello world this is some text";
-                if( fwrite( s, strlen(s), 1, wctx->f ) != 1 ) break;
-                exit(1);
-            } else {
-#endif
         if( fwrite( &wctx->current_header, RECORD_HEADER_SIZE, 1, wctx->f ) != 1 ) break;
-#if 0
-            }
-#endif
-        fflush( wctx->f );
-        fprintf( stderr, "flushed as requested.\n" );
 
         if( fsetpos( wctx->f, &cpos ) ) break;
 
@@ -217,8 +203,6 @@ int sfbt_new_leaf_record( struct sfbt_wctx* wctx ) {
 
         wctx->local_offset = RECORD_HEADER_SIZE;
 
-        fprintf( stderr, "in %p, setting local offset to %d\n", wctx, (int) wctx->local_offset );
-
         return 0;
     } while(0);
     return 1;
@@ -226,7 +210,6 @@ int sfbt_new_leaf_record( struct sfbt_wctx* wctx ) {
 
 int sfbt_desuspend_wctx( struct sfbt_wctx* wctx ) {
     if( !wctx->f ) {
-        fprintf( stderr, "restoring %p as %s at %ld\n", wctx, wctx->filename, wctx->current_pos );
         wctx->f = fopen( wctx->filename, "rb+" );
         if( !wctx->f ) return 1;
         if( fseek( wctx->f, wctx->current_pos, SEEK_SET ) ) return 1;
@@ -238,7 +221,6 @@ int sfbt_suspend_wctx( struct sfbt_wctx* wctx ) {
     wctx->current_pos = ftell( wctx->f );
     if( fclose( wctx->f ) ) return 1;
     wctx->f = 0;
-    fprintf( stderr, "saving %p as %s at %ld\n", wctx, wctx->filename, wctx->current_pos );
     return 0;
 }
 
@@ -277,7 +259,6 @@ int sfbt_add_entry( struct sfbt_wctx* wctx, const char * key, int64_t count) {
 
         const int written = stringsize + COUNT_SIZE + corr;
         wctx->local_offset += written;
-        fprintf( stderr, "in %p, setting local offset to %d\n", wctx, (int) wctx->local_offset );
 
         if( sfbt_suspend_wctx( wctx ) ) break;
 
