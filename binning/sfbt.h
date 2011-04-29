@@ -57,6 +57,11 @@ struct sfbt_record_header {
     uint16_t entry_offsets[ KEYS_PER_RECORD ];
 };
 
+union sfbt_record_buffer {
+    struct sfbt_record_header header;
+    char raw[ MAX_RECORD_SIZE ];
+};
+
 struct sfbt_wctx {
     FILE *f;
 
@@ -69,6 +74,8 @@ struct sfbt_wctx {
     int collected_children;
     char child_first_key[ KEYS_PER_RECORD ][ MAX_KEY_SIZE ];
     uint32_t child_offset[ KEYS_PER_RECORD ];
+
+    char debug_last_key[ MAX_ENTRY_SIZE ];
 };
 
 union sfbt_entry_suffix {
@@ -89,6 +96,17 @@ int sfbt_check_last_child_gen_at( struct sfbt_wctx*, long);
 struct sfbt_wctx *sfbt_new_wctx(const char *);
 int sfbt_close_wctx(struct sfbt_wctx*);
 
+struct sfbt_rctx {
+    FILE *f;
 
+    union sfbt_record_buffer root;
+    union sfbt_record_buffer buffer;
+};
+
+void * sfbt_find_suffix(union sfbt_record_buffer*, const char*,int);
+int sfbt_open_rctx(const char*, struct sfbt_rctx*);
+int sfbt_close_rctx(struct sfbt_rctx*);
+int sfbt_readnode(struct sfbt_rctx*, union sfbt_record_buffer* );
+int sfbt_search(struct sfbt_rctx*, const char*, int64_t*);
 
 #endif

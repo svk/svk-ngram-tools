@@ -208,6 +208,9 @@ int sfbt_new_leaf_record( struct sfbt_wctx* wctx ) {
 
 int sfbt_add_entry( struct sfbt_wctx* wctx, const char * key, int64_t count) {
     do {
+        assert( strcmp( wctx->debug_last_key, key ) < 0 );
+        strcpy( wctx->debug_last_key, key );
+
         if( wctx->current_header.entries == KEYS_PER_RECORD ) {
             if( sfbt_flush_record( wctx ) ) break;
             if( sfbt_new_leaf_record( wctx ) ) break;
@@ -271,6 +274,82 @@ int sfbt_close_wctx(struct sfbt_wctx* wctx) {
     return rv;
 }
 
+void * sfbt_find_suffix(union sfbt_record_buffer* buf, const char* key, int exact) {
+    int mn = 0, mx = buf->header.entries - 1;
+
+    while( mn != mx ) {
+        int mp = (mn + mx + 1) / 2;
+        assert( mn < mx );
+
+        const char *that_key = (const char*) &buf->raw[ buf->header.entry_offsets[mp] ];
+
+        int cr = strcmp( key, that_key );
+        if( cr < 0 ) {
+            fprintf( stderr, "\"%s\" is earlier than \"%s\"\n", key, that_key );
+            mx = mp - 1;
+        } else if ( cr >= 0 ) {
+            fprintf( stderr, "\"%s\" is later or equal to \"%s\"\n", key, that_key );
+            mn = mp;
+        }
+    }
+    assert( mn == mx );
+
+    char *that_entry = (char*) &buf->raw[ buf->header.entry_offsets[mn] ];
+    fprintf( stderr, "\"%s\" corresponds to \"%s\"\n", key, that_entry );
+    if( exact && strcmp( key, that_entry ) ) {
+        return 0;
+    }
+    return (void*) &that_entry[strlen( that_entry )+1];
+}
+
+int sfbt_search(struct sfbt_rctx* rctx, const char* key, int64_t* count_out) {
+    union sfbt_record_buffer *node = &rctx->root;
+    while( !node->header.entries_are_leaves ) {
+        void *p = sfbt_find_suffix( node, key, 0 );
+        if( !p ) return 1;
+        uint32_t* fpos = (uint32_t*) p;
+        if( fseek( rctx->f, *fpos, SEEK_SET ) ) return 1;
+        if( sfbt_readnode( rctx, &rctx->buffer ) ) return 1;
+        node = &rctx->buffer;
+    }
+    void *p = sfbt_find_suffix( node, key, 1 );
+    if( !p ) {
+        *count_out = 0;
+    } else {
+        int64_t* countp = (int64_t*) p;
+        *count_out = *countp;
+    }
+    return 0;
+}
+
+int sfbt_readnode(struct sfbt_rctx *rctx, union sfbt_record_buffer* node ) {
+    int rv = fread( node->raw, 1, MAX_RECORD_SIZE, rctx->f );
+    if( ferror( rctx->f ) ) {
+        return 1;
+    }
+    clearerr( rctx->f );
+    if( rv < node->header.record_size ) return 1;
+    return 0;
+}
+
+int sfbt_open_rctx(const char *filename, struct sfbt_rctx* rctx) {
+    rctx->f = fopen( filename, "rb" );
+    if( !rctx->f ) return 1;
+
+    do {
+        if( sfbt_readnode( rctx, &rctx->root ) ) break;
+
+        return 0;
+    } while(0);
+    fclose( rctx->f );
+    return 1;
+}
+
+int sfbt_close_rctx(struct sfbt_rctx* rctx) {
+    fclose( rctx->f );
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     struct sfbt_record_header my;
     fprintf( stderr, "%d %d\n", sizeof my, RECORD_HEADER_SIZE );
@@ -281,7 +360,7 @@ int main(int argc, char *argv[]) {
     assert( wctx );
     for(int i=0;i<500;i++) {
         char name[100];
-        sprintf( name, "%d", i );
+        sprintf( name, "%03d", i );
         if( sfbt_add_entry( wctx, name, i + 1 ) ) {
             fprintf(stderr, "failed 1.\n" );
             return 1;
@@ -289,6 +368,36 @@ int main(int argc, char *argv[]) {
     }
     if( sfbt_close_wctx( wctx ) ) {
         fprintf(stderr, "failed 2.\n" );
+        return 1;
+    }
+
+    struct sfbt_rctx rctx;
+    if( sfbt_open_rctx( "my.test.sfbt", &rctx ) ) {
+        fprintf( stderr, "readfail\n" );
+        return 1;
+    }
+
+    const char *strings[] = {
+        "100",
+        "200",
+        "300",
+        "400",
+        "500"
+    };
+    int nostrings = 5;
+
+    for(int i=0;i<nostrings;i++) {
+        int64_t count;
+        int rv = sfbt_search( &rctx, strings[i], &count );
+        if( rv ) {
+            fprintf( stderr, "retrievefail\n" );
+            return 1;
+        }
+        fprintf( stderr, "%s: %lld\n", strings[i], count );
+    }
+
+    if( sfbt_close_rctx( &rctx ) ) {
+        fprintf( stderr, "readclosefail\n" );
         return 1;
     }
     
