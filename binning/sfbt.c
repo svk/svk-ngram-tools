@@ -20,8 +20,6 @@ int sfbt_check_last_child_gen_at( struct sfbt_wctx* wctx, long foffset ) {
 
         while( count <= KEYS_PER_RECORD ) {
             uint32_t recsize;
-            fprintf( stderr, "checking at %d\n", (int) ftell( wctx->f ) );
-            fprintf( stderr, "wctx %p file desc %p\n", wctx, wctx->f );
             if( fread( &recsize, sizeof recsize, 1, wctx->f ) != 1) {
                 if( !feof( wctx->f ) ) return -1;
                 clearerr( wctx->f );
@@ -55,9 +53,7 @@ int sfbt_write_collected_node( struct sfbt_wctx* wctx ) {
 
         hdr.entries_are_leaves = 0;
 
-        fprintf( stderr, "yozers %d\n", sizeof hdr );
         if( fwrite( &hdr, sizeof hdr, 1, wctx->f ) != 1 ) break;
-        fprintf( stderr, "ergh\n" );
 
         int i;
         for(i=0; i < wctx->collected_children; i++) {
@@ -72,7 +68,6 @@ int sfbt_write_collected_node( struct sfbt_wctx* wctx ) {
 
         return 0;
     } while(0);
-    fprintf( stderr, "oops %d %s\n", errno, strerror(errno) );
     return 1;
 }
 
@@ -152,7 +147,6 @@ int sfbt_write_root( struct sfbt_wctx* wctx ) {
 }
 
 int sfbt_finalize( struct sfbt_wctx* wctx ) {
-    fprintf( stderr, "o hai\n" );
     sfbt_flush_record( wctx );
     do {
         int rv = sfbt_check_last_child_gen_at( wctx, wctx->current_generation_foffset );
@@ -171,8 +165,6 @@ int sfbt_flush_record( struct sfbt_wctx* wctx ) {
 
         if( fsetpos( wctx->f, &wctx->current_header_pos ) ) break;
 
-        fprintf( stderr, "flushing record with %d entries to header pos %d\n", wctx->current_header.entries, (int) ftell( wctx->f ) );
-        
         assert( sizeof wctx->current_header == RECORD_HEADER_SIZE );
 
         wctx->current_header.record_size = wctx->local_offset;
@@ -208,8 +200,10 @@ int sfbt_new_leaf_record( struct sfbt_wctx* wctx ) {
 
 int sfbt_add_entry( struct sfbt_wctx* wctx, const char * key, int64_t count) {
     do {
+#ifdef DEBUG
         assert( strcmp( wctx->debug_last_key, key ) < 0 );
         strcpy( wctx->debug_last_key, key );
+#endif
 
         if( wctx->current_header.entries == KEYS_PER_RECORD ) {
             if( sfbt_flush_record( wctx ) ) break;
@@ -219,7 +213,6 @@ int sfbt_add_entry( struct sfbt_wctx* wctx, const char * key, int64_t count) {
 
         const int stringsize = strlen(key) + 1;
         static const char nulls[] = {0,0,0,0,0,0,0,0};
-        fprintf( stderr, "wctx %p file desc %p\n", wctx, wctx->f );
 
         if( fwrite( key, stringsize, 1, wctx->f ) != 1 ) break;
 
@@ -274,7 +267,7 @@ int sfbt_close_wctx(struct sfbt_wctx* wctx) {
     return rv;
 }
 
-void * sfbt_find_suffix(union sfbt_record_buffer* buf, const char* key, int exact) {
+int sfbt_find_index(union sfbt_record_buffer* buf, const char* key, int exact) {
     int mn = 0, mx = buf->header.entries - 1;
 
     while( mn != mx ) {
@@ -285,38 +278,53 @@ void * sfbt_find_suffix(union sfbt_record_buffer* buf, const char* key, int exac
 
         int cr = strcmp( key, that_key );
         if( cr < 0 ) {
+#ifdef DEBUG
             fprintf( stderr, "\"%s\" is earlier than \"%s\"\n", key, that_key );
+#endif
             mx = mp - 1;
         } else if ( cr >= 0 ) {
+#ifdef DEBUG
             fprintf( stderr, "\"%s\" is later or equal to \"%s\"\n", key, that_key );
+#endif
             mn = mp;
         }
     }
     assert( mn == mx );
 
     char *that_entry = (char*) &buf->raw[ buf->header.entry_offsets[mn] ];
+#ifdef DEBUG
     fprintf( stderr, "\"%s\" corresponds to \"%s\"\n", key, that_entry );
+#endif
     if( exact && strcmp( key, that_entry ) ) {
-        return 0;
+        return -1;
     }
-    return (void*) &that_entry[strlen( that_entry )+1];
+    return mn;
 }
 
 int sfbt_search(struct sfbt_rctx* rctx, const char* key, int64_t* count_out) {
-    union sfbt_record_buffer *node = &rctx->root;
+    struct sfbt_cached_record *cache = rctx->root;
+    union sfbt_record_buffer *node = (union sfbt_record_buffer*) cache->data;
     while( !node->header.entries_are_leaves ) {
-        void *p = sfbt_find_suffix( node, key, 0 );
-        if( !p ) return 1;
-        uint32_t* fpos = (uint32_t*) p;
-        if( fseek( rctx->f, *fpos, SEEK_SET ) ) return 1;
-        if( sfbt_readnode( rctx, &rctx->buffer ) ) return 1;
-        node = &rctx->buffer;
+        int index = sfbt_find_index( (union sfbt_record_buffer*) node, key, 0 );
+        if( index < 0 ) return 1;
+        if( cache && cache->cached[index] ) {
+            cache = cache->cached[index];
+            node = (union sfbt_record_buffer*) cache->data;
+        } else {
+            const char *s = &node->raw[ node->header.entry_offsets[index] ];
+            uint32_t* fpos = (uint32_t*) &s[strlen(s)+1];
+            if( fseek( rctx->f, *fpos, SEEK_SET ) ) return 1;
+            if( sfbt_readnode( rctx, &rctx->buffer ) ) return 1;
+            cache = 0;
+            node = &rctx->buffer;
+        }
     }
-    void *p = sfbt_find_suffix( node, key, 1 );
-    if( !p ) {
+    int index = sfbt_find_index( node, key, 1 );
+    if( index < 0 ) {
         *count_out = 0;
     } else {
-        int64_t* countp = (int64_t*) p;
+        const char *s = &node->raw[ node->header.entry_offsets[index] ];
+        int64_t* countp = (int64_t*) &s[strlen(s)+1];
         *count_out = *countp;
     }
     return 0;
@@ -332,15 +340,70 @@ int sfbt_readnode(struct sfbt_rctx *rctx, union sfbt_record_buffer* node ) {
     return 0;
 }
 
-int sfbt_open_rctx(const char *filename, struct sfbt_rctx* rctx) {
+struct sfbt_cached_record* sfbt_cache_node(struct sfbt_rctx* rctx, int depth) {
+    struct sfbt_cached_record *rv = malloc(sizeof *rv);
+    rctx->cached_bytes += sizeof *rv;
+    do {
+        union sfbt_record_buffer buffer;
+        if( sfbt_readnode( rctx, &buffer ) ) break;
+
+        memset( rv, 0, sizeof *rv );
+
+        rv->data = malloc( buffer.header.record_size );
+        if( !rv->data ) break;
+        rctx->cached_bytes += buffer.header.record_size;
+
+        memcpy( rv->data, buffer.raw, buffer.header.record_size );
+
+        if( depth > 0 ) {
+            int i;
+            for(i=0;i<KEYS_PER_RECORD;i++) {
+                const char *s = &buffer.raw[buffer.header.entry_offsets[i]];
+                uint32_t *p = (uint32_t*) &s[strlen(s)+1];
+                if( fseek( rctx->f, *p, SEEK_SET ) ) break;
+                rv->cached[i] = sfbt_cache_node( rctx, depth - 1 );
+                if( !rv->cached[i] ) break;
+            }
+            if( i < KEYS_PER_RECORD ) break;
+        }
+
+        return rv;
+    } while(0);
+
+    if( rv ) {
+        for(int i=0;i<KEYS_PER_RECORD;i++) if( rv->cached[i] ) {
+            sfbt_free_cache( rv->cached[i] );
+        }
+    }
+
+    if( rv && rv->data ) free( rv->data );
+    if( rv ) free(rv);
+
+    return 0;
+}
+
+void sfbt_free_cache(struct sfbt_cached_record* cache) {
+    free( cache->data );
+    for(int i=0;i<KEYS_PER_RECORD;i++) if( cache->cached[i] ) {
+        sfbt_free_cache( cache->cached[i] );
+    }
+    free( cache );
+}
+
+int sfbt_open_rctx(const char *filename, struct sfbt_rctx* rctx, int depth) {
+    memset( rctx, 0, sizeof *rctx );
     rctx->f = fopen( filename, "rb" );
     if( !rctx->f ) return 1;
 
     do {
-        if( sfbt_readnode( rctx, &rctx->root ) ) break;
+        rctx->root = sfbt_cache_node( rctx, depth );
+        if( !rctx->root ) break;
 
         return 0;
     } while(0);
+    if( rctx->root ) {
+        sfbt_free_cache( rctx->root );
+    }
     fclose( rctx->f );
     return 1;
 }
@@ -350,6 +413,7 @@ int sfbt_close_rctx(struct sfbt_rctx* rctx) {
     return 0;
 }
 
+#ifdef TEST
 int main(int argc, char *argv[]) {
     struct sfbt_record_header my;
     fprintf( stderr, "%d %d\n", sizeof my, RECORD_HEADER_SIZE );
@@ -358,9 +422,9 @@ int main(int argc, char *argv[]) {
 
     struct sfbt_wctx *wctx = sfbt_new_wctx( "my.test.sfbt" );
     assert( wctx );
-    for(int i=0;i<500;i++) {
+    for(int i=0;i<1000000;i++) {
         char name[100];
-        sprintf( name, "%03d", i );
+        sprintf( name, "%07d", i );
         if( sfbt_add_entry( wctx, name, i + 1 ) ) {
             fprintf(stderr, "failed 1.\n" );
             return 1;
@@ -372,29 +436,24 @@ int main(int argc, char *argv[]) {
     }
 
     struct sfbt_rctx rctx;
-    if( sfbt_open_rctx( "my.test.sfbt", &rctx ) ) {
+    if( sfbt_open_rctx( "my.test.sfbt", &rctx, 1 ) ) {
         fprintf( stderr, "readfail\n" );
         return 1;
     }
+    fprintf( stderr, "Spending %d bytes on cache.\n", rctx.cached_bytes );
 
-    const char *strings[] = {
-        "100",
-        "200",
-        "300",
-        "400",
-        "500"
-    };
-    int nostrings = 5;
-
-    for(int i=0;i<nostrings;i++) {
+    fprintf( stderr, "Beginning reads.\n" );
+    for(int i=0;i<1000000;i++) {
+        char name[100];
+        sprintf( name, "%07d", i );
         int64_t count;
-        int rv = sfbt_search( &rctx, strings[i], &count );
-        if( rv ) {
-            fprintf( stderr, "retrievefail\n" );
+        int rv = sfbt_search( &rctx, name, &count );
+        if( count != i + 1 ) {
+            fprintf( stderr, "oops. %d\n", i );
             return 1;
         }
-        fprintf( stderr, "%s: %lld\n", strings[i], count );
     }
+    fprintf( stderr, "Finished reads.\n" );
 
     if( sfbt_close_rctx( &rctx ) ) {
         fprintf( stderr, "readclosefail\n" );
@@ -403,3 +462,4 @@ int main(int argc, char *argv[]) {
     
     return 0;
 }
+#endif

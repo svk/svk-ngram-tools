@@ -36,7 +36,7 @@
 
 #define GLOBAL_OFFSET_SIZE 4
 #define MAX_KEY_SIZE 256 // includes nul
-#define KEYS_PER_RECORD 8
+#define KEYS_PER_RECORD 128
 #define KEY_ALIGNMENT 4
 #define KEY_OFFSET_SIZE 2
 #define COUNT_SIZE 8
@@ -96,15 +96,26 @@ int sfbt_check_last_child_gen_at( struct sfbt_wctx*, long);
 struct sfbt_wctx *sfbt_new_wctx(const char *);
 int sfbt_close_wctx(struct sfbt_wctx*);
 
+struct sfbt_cached_record {
+    struct sfbt_record_header *data;
+    struct sfbt_cached_record *cached[ KEYS_PER_RECORD ];
+};
+
 struct sfbt_rctx {
     FILE *f;
 
-    union sfbt_record_buffer root;
+    struct sfbt_cached_record *root;
+
     union sfbt_record_buffer buffer;
+
+    int cached_bytes;
 };
 
-void * sfbt_find_suffix(union sfbt_record_buffer*, const char*,int);
-int sfbt_open_rctx(const char*, struct sfbt_rctx*);
+struct sfbt_cached_record* sfbt_cache_node(struct sfbt_rctx*, int);
+void sfbt_free_cache(struct sfbt_cached_record*);
+
+int sfbt_find_index(union sfbt_record_buffer*, const char*,int);
+int sfbt_open_rctx(const char*, struct sfbt_rctx*, int);
 int sfbt_close_rctx(struct sfbt_rctx*);
 int sfbt_readnode(struct sfbt_rctx*, union sfbt_record_buffer* );
 int sfbt_search(struct sfbt_rctx*, const char*, int64_t*);
