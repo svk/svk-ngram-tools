@@ -40,9 +40,26 @@ Major avenue of optimization:
     or 512-bit such by using a larger hash. We can easily check that this
     is perfect, which it likely is.
 
+    Experimental results with truncated MD5, SHA1 indicate that it might
+    be hard to achieve perfect 4-byte hashing. (About 1 in 500 is a collision.)
+    Counterintuitive, but that's why the birthday paradox is a "paradox".
+    6-byte perfect hashing is nontrivial but clearly achievable;
+    MD5 gives 2 collisions in the whole set and SHA1 gives 1.
+
+    Alignment might be a luxury we cannot afford.
+
+    [Something tried and discarded: gperf. This is meant for much smaller
+     sets. For 10k words it generates 86k lines of C including the full list
+     of words.]
+
 
 For later, and for evaluating results:
     keep in mind it's absolutely essential that the query results are CACHED
     while parsing one sentence on-line. there will be a lot of overlap.
+
+    Also, we only need to compute the token hashes _once_ for each word
+    (per parse -- may use caching here for common words) so it's
+    okay to use a more expensive hash such as truncated SHA1 if that makes
+    it perfect.
 
     
