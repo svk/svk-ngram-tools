@@ -26,7 +26,7 @@ int sfbt_check_last_child_gen_at( struct sfbt_wctx* wctx, long foffset ) {
                 break;
             }
 
-            if( semifile_fseek( wctx->f, recsize - 4, SEEK_CUR ) ) break;
+            if( semifile_fseek( wctx->f, semifile_ftell( wctx->f ) + recsize - 4, SEEK_SET ) ) break;
 
             count++;
         }

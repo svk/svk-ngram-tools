@@ -214,15 +214,16 @@ int semifile_fseek( struct semifile_ctx* ctx, long offset, int whence ) {
     switch( whence ) {
         case SEEK_SET:
             fprintf( stderr, "desire SEEK_SET to %08x\n", offset);
-            // simplify
+
             if( ctx->fill > 0 && semifile_flush( ctx ) ) return 1;
             ctx->buffer_pos = offset;
             ctx->offset = 0;
             return 0;
 
-            // reduce to SEEK_CUR
-            offset -= ctx->buffer_pos + ctx->offset;
+            // simplify
+//            offset -= ctx->buffer_pos + ctx->offset;
         case SEEK_CUR:
+            // XXX does not work correctly -- unused
             fprintf( stderr, "desire ~ SEEK_CUR to %08x\n", offset);
             {
                 long noffset = offset + ctx->offset;
