@@ -53,6 +53,8 @@ int sfbt_write_collected_node( struct sfbt_wctx* wctx ) {
 
         hdr.entries_are_leaves = 0;
 
+        long mypos = semifile_ftell( wctx->f );
+
         if( semifile_fwrite( &hdr, sizeof hdr, 1, wctx->f ) != 1 ) break;
 
         int i;
@@ -65,6 +67,8 @@ int sfbt_write_collected_node( struct sfbt_wctx* wctx ) {
             if( semifile_fwrite( &suff, sizeof suff, 1, wctx->f ) != 1 ) break;
         }
         if( i < wctx->collected_children ) break; 
+        
+        fprintf( stderr, "wrote collected node to %08x\n", mypos );
 
         return 0;
     } while(0);
@@ -81,12 +85,15 @@ int sfbt_collect_children( struct sfbt_wctx* wctx, long stop_pos ) {
 
         while( wctx->collected_children < KEYS_PER_RECORD ) {
             long foffset = semifile_ftell( wctx->f );
+            fprintf( stderr, "collecting a child from %08x (%d)\n", foffset, wctx->collected_children );
 
             if( foffset >= stop_pos ) break;
                 
             if( semifile_fread( &buffer[0], 4, 1, wctx->f ) != 1 ) {
                 return 1;
             }
+            assert( *recsize >= 4 );
+            assert( *recsize <= MAX_RECORD_SIZE );
             if( semifile_fread( &buffer[4], *recsize - 4, 1, wctx->f ) != 1 ) {
                 return 1;
             }
@@ -97,6 +104,7 @@ int sfbt_collect_children( struct sfbt_wctx* wctx, long stop_pos ) {
 
             wctx->collected_children++;
         }
+        fprintf( stderr, "round of child-collecting finished at %d\n", wctx->collected_children );
 
         return 0;
     } while(0);
@@ -172,19 +180,26 @@ int sfbt_flush_record( struct sfbt_wctx* wctx ) {
     do {
         semifile_fpos_t cpos;
         if( semifile_fgetpos( wctx->f, &cpos ) ) break;
+        fprintf( stderr, "wctx fpos before flush : %ld\n", cpos );
 
         if( semifile_fsetpos( wctx->f, &wctx->current_header_pos ) ) break;
+        fprintf( stderr, "patching up record at %08x\n", wctx->current_header_pos );
 
         assert( sizeof wctx->current_header == RECORD_HEADER_SIZE );
 
         wctx->current_header.record_size = wctx->local_offset;
 
         if( semifile_fwrite( &wctx->current_header, RECORD_HEADER_SIZE, 1, wctx->f ) != 1 ) break;
+        fprintf( stderr, "[beta]\n" );
 
         if( semifile_fsetpos( wctx->f, &cpos ) ) break;
+        fprintf( stderr, "[gamma]\n" );
 
         memset( &wctx->current_header, 0, sizeof wctx->current_header );
         wctx->local_offset = 0;
+
+        if( semifile_fgetpos( wctx->f, &cpos ) ) break;
+        fprintf( stderr, "wctx fpos after flush: %ld\n", cpos );
 
         return 0;
     } while(0);
@@ -202,6 +217,8 @@ int sfbt_new_leaf_record( struct sfbt_wctx* wctx ) {
         wctx->current_header.entries_are_leaves = 1;
 
         wctx->local_offset = RECORD_HEADER_SIZE;
+
+        fprintf( stderr, "creating new leaf at %08x\n", wctx->current_header_pos );
 
         return 0;
     } while(0);
@@ -236,6 +253,7 @@ int sfbt_add_entry( struct sfbt_wctx* wctx, const char * key, int64_t count) {
             assert( corr > 0 );
             if( semifile_fwrite( nulls, corr, 1, wctx->f ) != 1 ) break;
         }
+
 
         wctx->current_header.entry_offsets[ wctx->current_header.entries++ ] = wctx->local_offset;
 
@@ -477,6 +495,8 @@ int sfbt_desuspend_rctx(struct sfbt_rctx* rctx) {
 
 #ifdef TEST
 int main(int argc, char *argv[]) {
+    const int N = 1000000;
+
     struct sfbt_record_header my;
     fprintf( stderr, "%d %d\n", sizeof my, RECORD_HEADER_SIZE );
     fprintf( stderr, "%d\n", MAX_RECORD_SIZE );
@@ -485,11 +505,11 @@ int main(int argc, char *argv[]) {
 
     struct sfbt_wctx *wctx = sfbt_new_wctx( "my.test.sfbt" );
     assert( wctx );
-    for(int i=0;i<1000000;i++) {
+    for(int i=0;i<N;i++) {
         char name[100];
         sprintf( name, "%07d", i );
         if( sfbt_add_entry( wctx, name, i + 1 ) ) {
-            fprintf(stderr, "failed 1.\n" );
+            fprintf(stderr, "failed 1 adding %s.\n", name );
             return 1;
         }
     }
@@ -506,7 +526,7 @@ int main(int argc, char *argv[]) {
     fprintf( stderr, "Spending %d bytes on cache.\n", rctx.cached_bytes );
 
     fprintf( stderr, "Beginning reads.\n" );
-    for(int i=0;i<1000000;i++) {
+    for(int i=0;i<N;i++) {
         char name[100];
         sprintf( name, "%07d", i );
         int64_t count;

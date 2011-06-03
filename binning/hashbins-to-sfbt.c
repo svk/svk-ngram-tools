@@ -185,13 +185,16 @@ int main(int argc, char* argv[]) {
             sfbt_add_entry( histogram[ index ], buffer, ngr_ll_col( ngrf, N ) );
             ++processed;
         }
+            fprintf( stderr, "done processing\n" );
         ngr_free(ngrf);
+            fprintf( stderr, "done freeing\n" );
     }
 
     if( verbose ) {
         fprintf( stderr, "%lld %d-grams processed.\n", processed, N );
     }
     
+            fprintf( stderr, "done printing message\n" );
     for(long long j=0;j<maxindex;j++) {
         if( verbose ) {
             fprintf( stderr, "Finalizing SFBT %d of %d.\n", j + 1, maxindex );
