@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
         }
         int rv = sfbt_open_rctx( filename, &histogram[j], 0 );
         if( rv || sfbt_suspend_rctx( &histogram[j] ) ) {
-            fprintf( stderr, "fatal error: load/suspend error or out of memory\n" );
+            fprintf( stderr, "fatal error: load/suspend error on %s or out of memory\n", filename );
             return 1;
         }
     }

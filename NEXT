@@ -1,0 +1,48 @@
+State at the moment:
+    5gm-0112.gz 79 megabytes expands to indexed form of 400 megabytes.
+    Running the full index back takes:
+        real    89m43.923s
+        user    3m9.224s
+        sys     31m45.556s
+    that is, 210 microseconds of CPU time per lookup
+
+Making the sfbt trees smaller.
+Major avenue of optimization:
+    Compress the SBFT files using 16-bit words in place of space-separated text.
+    13m / 3k ~= 4k << 64k, so this is fine.
+    [Wait, no, this is very wrong. What's the real number? We may need 4 bytes,
+     but even so this is a massive improvement (it also eliminates spaces).
+     Obviously we cannot possibly need more than 4 bytes.
+     Intuition suggests that finding a perfect hash (non-minimal) should not
+     be all that difficult.
+     Birthday numbers for 13m tokens, 4 byte hashes:
+        1 * (2**32-1)/(2**32) * ... (2**32-13m) / 2**32m
+        fac( 2**32 ) / fac( 13m )
+
+    However, we need a hash table.
+
+    Ideal solution is perfect hashing. Then we do NOT need a hash table.
+    This page:
+        http://burtleburtle.net/bob/hash/perfect.html#algo
+    suggests that might be possible.
+
+    We do not really need minimality. Everything above 16 bits and below
+    or equal to 32 bits is much the same for our purposes.
+    Might look into using a larger hash
+    and choosing a subset of the bits it generates.
+    Useful, a way to iterate through many such subsets (only the contiguous
+    ones):
+        
+        
+    Look into lit on perfect hashing.
+
+    The lit wants integers. We can likely assume that we have 128-bit
+    or 512-bit such by using a larger hash. We can easily check that this
+    is perfect, which it likely is.
+
+
+For later, and for evaluating results:
+    keep in mind it's absolutely essential that the query results are CACHED
+    while parsing one sentence on-line. there will be a lot of overlap.
+
+    

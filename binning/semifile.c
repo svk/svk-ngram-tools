@@ -16,7 +16,7 @@ struct semifile_ctx* semifile_fopen( const char* filename, int trunc ) {
     do {
         const char *mode = trunc ? "wb+" : "rb+";
         FILE *f = fopen( filename, mode );
-        fprintf( stderr, "opening with trunc?=%d\n", trunc );
+//        fprintf( stderr, "opening with trunc?=%d\n", trunc );
         if( !f ) break;
         fclose( f );
 
@@ -77,7 +77,7 @@ int semifile_flush( struct semifile_ctx* ctx ) {
         return 1;
     }
 
-    fprintf( stderr, "flush-writing to %08x [%d bytes, offset = %08x]\n", ctx->buffer_pos, ctx->fill, ctx->offset );
+//    fprintf( stderr, "flush-writing to %08x [%d bytes, offset = %08x]\n", ctx->buffer_pos, ctx->fill, ctx->offset );
 
     int written = 0;
     while( written < ctx->fill ) {
@@ -89,7 +89,7 @@ int semifile_flush( struct semifile_ctx* ctx ) {
         }
         written += rv;
     }
-    fprintf( stderr, "flush-wrote to %08x [%d bytes written, offset = %d]\n", ctx->buffer_pos, written, ctx->offset );
+//    fprintf( stderr, "flush-wrote to %08x [%d bytes written, offset = %d]\n", ctx->buffer_pos, written, ctx->offset );
 
 
     ctx->buffer_pos += ctx->offset; // might not == written if seeks are involved
@@ -97,7 +97,7 @@ int semifile_flush( struct semifile_ctx* ctx ) {
     ctx->offset = 0;
     memset( ctx->buffer, 0, BUFFERSIZE );
 
-    fprintf( stderr, "next offset is %08x\n", ctx->buffer_pos );
+//    fprintf( stderr, "next offset is %08x\n", ctx->buffer_pos );
 
     ctx->error = ferror( f ) ? 1 : 0;
     ctx->eof = feof( f );
@@ -151,12 +151,12 @@ int semifile_fwrite( const void* data, size_t size, size_t nmemb, struct semifil
         fclose(f);
         return 1;
     }
-    fprintf( stderr, "write-writing to %08x [%d bytes]\n", realpos, size * nmemb );
+//    fprintf( stderr, "write-writing to %08x [%d bytes]\n", realpos, size * nmemb );
 
     int rv = fwrite( data, size, nmemb, f );
     if( rv > 0 ) {
         ctx->buffer_pos += size * rv;
-        fprintf( stderr, "write-writing changed buffer_pos to %08x\n", ctx->buffer_pos );
+//        fprintf( stderr, "write-writing changed buffer_pos to %08x\n", ctx->buffer_pos );
     }
 
     ctx->error = ferror( f ) ? 1 : 0;
@@ -189,7 +189,7 @@ int semifile_fread(void* data, size_t size, size_t nmemb, struct semifile_ctx* c
     int rv = fread( data, size, nmemb, f );
     if( rv > 0 ) {
         ctx->buffer_pos += size * rv;
-        fprintf( stderr, "read-reading changed buffer_pos to %08x\n", ctx->buffer_pos );
+//        fprintf( stderr, "read-reading changed buffer_pos to %08x\n", ctx->buffer_pos );
     }
 
     ctx->error = ferror( f ) ? 1 : 0;
@@ -210,10 +210,10 @@ int semifile_ferror( struct semifile_ctx* ctx ) {
 }
 
 int semifile_fseek( struct semifile_ctx* ctx, long offset, int whence ) {
-    fprintf( stderr, "seeking %ld %d\n", offset, whence );
+//    fprintf( stderr, "seeking %ld %d\n", offset, whence );
     switch( whence ) {
         case SEEK_SET:
-            fprintf( stderr, "desire SEEK_SET to %08x\n", offset);
+//            fprintf( stderr, "desire SEEK_SET to %08x\n", offset);
 
             if( ctx->fill > 0 && semifile_flush( ctx ) ) return 1;
             ctx->buffer_pos = offset;

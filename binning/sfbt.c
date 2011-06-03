@@ -68,7 +68,7 @@ int sfbt_write_collected_node( struct sfbt_wctx* wctx ) {
         }
         if( i < wctx->collected_children ) break; 
         
-        fprintf( stderr, "wrote collected node to %08x\n", mypos );
+//        fprintf( stderr, "wrote collected node to %08x\n", mypos );
 
         return 0;
     } while(0);
@@ -85,7 +85,7 @@ int sfbt_collect_children( struct sfbt_wctx* wctx, long stop_pos ) {
 
         while( wctx->collected_children < KEYS_PER_RECORD ) {
             long foffset = semifile_ftell( wctx->f );
-            fprintf( stderr, "collecting a child from %08x (%d)\n", foffset, wctx->collected_children );
+//            fprintf( stderr, "collecting a child from %08x (%d)\n", foffset, wctx->collected_children );
 
             if( foffset >= stop_pos ) break;
                 
@@ -104,7 +104,7 @@ int sfbt_collect_children( struct sfbt_wctx* wctx, long stop_pos ) {
 
             wctx->collected_children++;
         }
-        fprintf( stderr, "round of child-collecting finished at %d\n", wctx->collected_children );
+//        fprintf( stderr, "round of child-collecting finished at %d\n", wctx->collected_children );
 
         return 0;
     } while(0);
@@ -180,26 +180,26 @@ int sfbt_flush_record( struct sfbt_wctx* wctx ) {
     do {
         semifile_fpos_t cpos;
         if( semifile_fgetpos( wctx->f, &cpos ) ) break;
-        fprintf( stderr, "wctx fpos before flush : %ld\n", cpos );
+//        fprintf( stderr, "wctx fpos before flush : %ld\n", cpos );
 
         if( semifile_fsetpos( wctx->f, &wctx->current_header_pos ) ) break;
-        fprintf( stderr, "patching up record at %08x\n", wctx->current_header_pos );
+//        fprintf( stderr, "patching up record at %08x\n", wctx->current_header_pos );
 
         assert( sizeof wctx->current_header == RECORD_HEADER_SIZE );
 
         wctx->current_header.record_size = wctx->local_offset;
 
         if( semifile_fwrite( &wctx->current_header, RECORD_HEADER_SIZE, 1, wctx->f ) != 1 ) break;
-        fprintf( stderr, "[beta]\n" );
+//        fprintf( stderr, "[beta]\n" );
 
         if( semifile_fsetpos( wctx->f, &cpos ) ) break;
-        fprintf( stderr, "[gamma]\n" );
+//        fprintf( stderr, "[gamma]\n" );
 
         memset( &wctx->current_header, 0, sizeof wctx->current_header );
         wctx->local_offset = 0;
 
         if( semifile_fgetpos( wctx->f, &cpos ) ) break;
-        fprintf( stderr, "wctx fpos after flush: %ld\n", cpos );
+//        fprintf( stderr, "wctx fpos after flush: %ld\n", cpos );
 
         return 0;
     } while(0);
@@ -218,7 +218,7 @@ int sfbt_new_leaf_record( struct sfbt_wctx* wctx ) {
 
         wctx->local_offset = RECORD_HEADER_SIZE;
 
-        fprintf( stderr, "creating new leaf at %08x\n", wctx->current_header_pos );
+//        fprintf( stderr, "creating new leaf at %08x\n", wctx->current_header_pos );
 
         return 0;
     } while(0);
