@@ -1,6 +1,7 @@
 CFLAGS=-std=c99 -g
 CC=gcc
 LDFLAGS=-lz
+CPPC=g++
 
 GETOPTDIR=../lib/freegetopt-0.11
 BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin
@@ -40,3 +41,5 @@ test-ngread: test-ngread.o ngread.o $(GETOPTDIR)/getopt.o
 mkbins: mkbins.o ngread.o bins.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
+test-wordhash: test-wordhash.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
+	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
