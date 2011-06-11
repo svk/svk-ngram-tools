@@ -66,15 +66,47 @@ union sfbt_record_buffer {
     char raw[ MAX_RECORD_SIZE ];
 };
 
+#ifdef USE_SEMIFILES
+#define FSF_FPOS semifile_fpos_t
+#define FSF_FGETPOS semifile_fgetpos
+#define FSF_FSEEK semifile_fseek
+#define FSF_FREAD semifile_fread
+#define FSF_FWRITE semifile_fwrite
+#define FSF_FSETPOS semifile_fsetpos
+#define FSF_FTELL semifile_ftell
+#define FSF_REWIND semifile_rewind
+#define FSF_CLEARERR semifile_clearerr
+#define FSF_FEOF semifile_feof
+#define FSF_FCLOSE semifile_fclose
+#else
+#define FSF_FPOS fpos_t
+#define FSF_FGETPOS fgetpos
+#define FSF_FSEEK fseek
+#define FSF_FREAD fread
+#define FSF_FWRITE fwrite
+#define FSF_FSETPOS fsetpos
+#define FSF_FTELL ftell
+#define FSF_REWIND rewind
+#define FSF_CLEARERR clearerr
+#define FSF_FEOF feof
+#define FSF_FCLOSE fclose
+#endif
+
 struct sfbt_wctx {
+#ifdef USE_SEMIFILES
     SEMIFILE* f;
+    semifile_fpos_t current_header_pos;
+#else
+    FILE *f;
+    fpos_t current_header_pos;
+#endif
+
     char filename[ MAX_SFBT_FILENAME_LEN ];
     long current_pos;
 
     long current_generation_foffset;
 
     struct sfbt_record_header current_header;
-    semifile_fpos_t current_header_pos;
     uint16_t local_offset;
 
     int collected_children;

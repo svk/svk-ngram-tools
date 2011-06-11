@@ -11,28 +11,28 @@ int sfbt_check_last_child_gen_at( struct sfbt_wctx* wctx, long foffset ) {
     // next node will be the root node?
 
     do {
-        semifile_fpos_t cpos;
-        if( semifile_fgetpos( wctx->f, &cpos ) ) break;
+        FSF_FPOS cpos;
+        if( FSF_FGETPOS( wctx->f, &cpos ) ) break;
 
-        if( semifile_fseek( wctx->f, foffset, SEEK_SET ) ) break;
+        if( FSF_FSEEK( wctx->f, foffset, SEEK_SET ) ) break;
 
         int count = 0;
 
         while( count <= KEYS_PER_RECORD ) {
             uint32_t recsize;
-            if( semifile_fread( &recsize, sizeof recsize, 1, wctx->f ) != 1) {
-                if( !semifile_feof( wctx->f ) ) return -1;
-                semifile_clearerr( wctx->f );
+            if( FSF_FREAD( &recsize, sizeof recsize, 1, wctx->f ) != 1) {
+                if( !FSF_FEOF( wctx->f ) ) return -1;
+                FSF_CLEARERR( wctx->f );
                 break;
             }
 
-            if( semifile_fseek( wctx->f, semifile_ftell( wctx->f ) + recsize - 4, SEEK_SET ) ) break;
+            if( FSF_FSEEK( wctx->f, FSF_FTELL( wctx->f ) + recsize - 4, SEEK_SET ) ) break;
 
             count++;
         }
 
         // yes.
-        if( semifile_fsetpos( wctx->f, &cpos ) ) break;
+        if( FSF_FSETPOS( wctx->f, &cpos ) ) break;
         return count <= KEYS_PER_RECORD;
     } while(0);
     return -1;
@@ -53,9 +53,9 @@ int sfbt_write_collected_node( struct sfbt_wctx* wctx ) {
 
         hdr.entries_are_leaves = 0;
 
-        long mypos = semifile_ftell( wctx->f );
+        long mypos = FSF_FTELL( wctx->f );
 
-        if( semifile_fwrite( &hdr, sizeof hdr, 1, wctx->f ) != 1 ) break;
+        if( FSF_FWRITE( &hdr, sizeof hdr, 1, wctx->f ) != 1 ) break;
 
         int i;
         for(i=0; i < wctx->collected_children; i++) {
@@ -63,8 +63,8 @@ int sfbt_write_collected_node( struct sfbt_wctx* wctx ) {
             memset( &suff, 0, sizeof suff );
             suff.offset = wctx->child_offset[i];
 
-            if( semifile_fwrite( wctx->child_first_key[i], strlen( wctx->child_first_key[i] ) + 1, 1, wctx->f ) != 1 ) break;
-            if( semifile_fwrite( &suff, sizeof suff, 1, wctx->f ) != 1 ) break;
+            if( FSF_FWRITE( wctx->child_first_key[i], strlen( wctx->child_first_key[i] ) + 1, 1, wctx->f ) != 1 ) break;
+            if( FSF_FWRITE( &suff, sizeof suff, 1, wctx->f ) != 1 ) break;
         }
         if( i < wctx->collected_children ) break; 
         
@@ -84,17 +84,17 @@ int sfbt_collect_children( struct sfbt_wctx* wctx, long stop_pos ) {
         wctx->collected_children = 0;
 
         while( wctx->collected_children < KEYS_PER_RECORD ) {
-            long foffset = semifile_ftell( wctx->f );
+            long foffset = FSF_FTELL( wctx->f );
 //            fprintf( stderr, "collecting a child from %08x (%d)\n", foffset, wctx->collected_children );
 
             if( foffset >= stop_pos ) break;
                 
-            if( semifile_fread( &buffer[0], 4, 1, wctx->f ) != 1 ) {
+            if( FSF_FREAD( &buffer[0], 4, 1, wctx->f ) != 1 ) {
                 return 1;
             }
             assert( *recsize >= 4 );
             assert( *recsize <= MAX_RECORD_SIZE );
-            if( semifile_fread( &buffer[4], *recsize - 4, 1, wctx->f ) != 1 ) {
+            if( FSF_FREAD( &buffer[4], *recsize - 4, 1, wctx->f ) != 1 ) {
                 return 1;
             }
 
@@ -113,26 +113,26 @@ int sfbt_collect_children( struct sfbt_wctx* wctx, long stop_pos ) {
 
 int sfbt_write_parents( struct sfbt_wctx* wctx ) {
     do {
-        long next_gen_foffset = semifile_ftell( wctx->f );
+        long next_gen_foffset = FSF_FTELL( wctx->f );
 
         long last_gen_cur = wctx->current_generation_foffset;
-        semifile_fpos_t cur;
+        FSF_FPOS cur;
 
-        if( semifile_fgetpos( wctx->f, &cur ) ) break;
+        if( FSF_FGETPOS( wctx->f, &cur ) ) break;
 
-        if( semifile_fseek( wctx->f, last_gen_cur, SEEK_SET ) ) break;
+        if( FSF_FSEEK( wctx->f, last_gen_cur, SEEK_SET ) ) break;
         if(sfbt_collect_children( wctx, next_gen_foffset )) break;
-        last_gen_cur = semifile_ftell( wctx->f );
-        if( semifile_fsetpos( wctx->f, &cur ) ) break;
+        last_gen_cur = FSF_FTELL( wctx->f );
+        if( FSF_FSETPOS( wctx->f, &cur ) ) break;
         
         while( wctx->collected_children > 0 ) {
             if(sfbt_write_collected_node( wctx )) return 1;
-            if( semifile_fgetpos( wctx->f, &cur ) ) return 1;
+            if( FSF_FGETPOS( wctx->f, &cur ) ) return 1;
 
-            if( semifile_fseek( wctx->f, last_gen_cur, SEEK_SET ) ) return 1;
+            if( FSF_FSEEK( wctx->f, last_gen_cur, SEEK_SET ) ) return 1;
             if(sfbt_collect_children( wctx, next_gen_foffset )) return 1;
-            last_gen_cur = semifile_ftell( wctx->f );
-            if( semifile_fsetpos( wctx->f, &cur ) ) return 1;
+            last_gen_cur = FSF_FTELL( wctx->f );
+            if( FSF_FSETPOS( wctx->f, &cur ) ) return 1;
         }
 
         wctx->current_generation_foffset = next_gen_foffset;
@@ -143,8 +143,8 @@ int sfbt_write_parents( struct sfbt_wctx* wctx ) {
 
 int sfbt_write_root( struct sfbt_wctx* wctx ) {
     do {
-        long t = semifile_ftell( wctx->f );
-        if( semifile_fseek( wctx->f, wctx->current_generation_foffset, SEEK_SET ) ) break;
+        long t = FSF_FTELL( wctx->f );
+        if( FSF_FSEEK( wctx->f, wctx->current_generation_foffset, SEEK_SET ) ) break;
         if(sfbt_collect_children( wctx, t )) break;
         if( !wctx->collected_children ) {
             // should maybe fix this, but it is low-priority because it is not
@@ -155,7 +155,7 @@ int sfbt_write_root( struct sfbt_wctx* wctx ) {
             //   useful. ]
             fprintf( stderr, "warning: %s is empty and is left invalid\n", wctx->filename );
         } else {
-            semifile_rewind( wctx->f );
+            FSF_REWIND( wctx->f );
             if(sfbt_write_collected_node( wctx )) break;
         }
 
@@ -178,27 +178,27 @@ int sfbt_finalize( struct sfbt_wctx* wctx ) {
 
 int sfbt_flush_record( struct sfbt_wctx* wctx ) {
     do {
-        semifile_fpos_t cpos;
-        if( semifile_fgetpos( wctx->f, &cpos ) ) break;
+        FSF_FPOS cpos;
+        if( FSF_FGETPOS( wctx->f, &cpos ) ) break;
 //        fprintf( stderr, "wctx fpos before flush : %ld\n", cpos );
 
-        if( semifile_fsetpos( wctx->f, &wctx->current_header_pos ) ) break;
+        if( FSF_FSETPOS( wctx->f, &wctx->current_header_pos ) ) break;
 //        fprintf( stderr, "patching up record at %08x\n", wctx->current_header_pos );
 
         assert( sizeof wctx->current_header == RECORD_HEADER_SIZE );
 
         wctx->current_header.record_size = wctx->local_offset;
 
-        if( semifile_fwrite( &wctx->current_header, RECORD_HEADER_SIZE, 1, wctx->f ) != 1 ) break;
+        if( FSF_FWRITE( &wctx->current_header, RECORD_HEADER_SIZE, 1, wctx->f ) != 1 ) break;
 //        fprintf( stderr, "[beta]\n" );
 
-        if( semifile_fsetpos( wctx->f, &cpos ) ) break;
+        if( FSF_FSETPOS( wctx->f, &cpos ) ) break;
 //        fprintf( stderr, "[gamma]\n" );
 
         memset( &wctx->current_header, 0, sizeof wctx->current_header );
         wctx->local_offset = 0;
 
-        if( semifile_fgetpos( wctx->f, &cpos ) ) break;
+        if( FSF_FGETPOS( wctx->f, &cpos ) ) break;
 //        fprintf( stderr, "wctx fpos after flush: %ld\n", cpos );
 
         return 0;
@@ -208,10 +208,10 @@ int sfbt_flush_record( struct sfbt_wctx* wctx ) {
 
 int sfbt_new_leaf_record( struct sfbt_wctx* wctx ) {
     do {
-        if( semifile_fgetpos( wctx->f, &wctx->current_header_pos ) ) break;
+        if( FSF_FGETPOS( wctx->f, &wctx->current_header_pos ) ) break;
 
         memset( &wctx->current_header, 0, sizeof wctx->current_header );
-        if( semifile_fwrite( &wctx->current_header, RECORD_HEADER_SIZE, 1, wctx->f ) != 1 ) break;
+        if( FSF_FWRITE( &wctx->current_header, RECORD_HEADER_SIZE, 1, wctx->f ) != 1 ) break;
 
         wctx->current_header.entries = 0;
         wctx->current_header.entries_are_leaves = 1;
@@ -241,17 +241,17 @@ int sfbt_add_entry( struct sfbt_wctx* wctx, const char * key, int64_t count) {
         const int stringsize = strlen(key) + 1;
         static const char nulls[] = {0,0,0,0,0,0,0,0};
 
-        if( semifile_fwrite( key, stringsize, 1, wctx->f ) != 1 ) break;
+        if( FSF_FWRITE( key, stringsize, 1, wctx->f ) != 1 ) break;
 
         union sfbt_entry_suffix suff;
         memset( &suff, 0, sizeof suff );
         suff.count = count;
         assert( sizeof suff == ENTRY_SUFFIX_SIZE );
-        if( semifile_fwrite( &suff, sizeof suff, 1, wctx->f ) != 1 ) break;
+        if( FSF_FWRITE( &suff, sizeof suff, 1, wctx->f ) != 1 ) break;
         const int corr = (KEY_ALIGNMENT - ((stringsize + COUNT_SIZE) % KEY_ALIGNMENT)) % KEY_ALIGNMENT;
         if( corr ) {
             assert( corr > 0 );
-            if( semifile_fwrite( nulls, corr, 1, wctx->f ) != 1 ) break;
+            if( FSF_FWRITE( nulls, corr, 1, wctx->f ) != 1 ) break;
         }
 
 
@@ -278,16 +278,20 @@ struct sfbt_wctx *sfbt_new_wctx(const char * filename) {
         strcpy( rv->filename, filename );
         ++phase;
 
+#ifdef USE_SEMIFILES
         rv->f = semifile_fopen( filename, 1 );
+#else
+        rv->f = fopen( filename, "wb+" );
+#endif
         if( !rv->f ) break;
         ++phase;
 
-        if( semifile_fseek( rv->f, MAX_RECORD_SIZE, SEEK_SET ) ) break;
+        if( FSF_FSEEK( rv->f, MAX_RECORD_SIZE, SEEK_SET ) ) break;
         ++phase;
 
-        rv->current_generation_foffset = semifile_ftell( rv->f );
+        rv->current_generation_foffset = FSF_FTELL( rv->f );
         ++phase;
-        if( semifile_fgetpos( rv->f, &rv->current_header_pos) ) break;
+        if( FSF_FGETPOS( rv->f, &rv->current_header_pos) ) break;
         ++phase;
 
         if( sfbt_new_leaf_record( rv ) ) break;
@@ -304,7 +308,7 @@ int sfbt_close_wctx(struct sfbt_wctx* wctx) {
     int rv = sfbt_finalize( wctx );
 
     if( wctx->f ) {
-        semifile_fclose( wctx->f );
+        FSF_FCLOSE( wctx->f );
     }
     free( wctx );
 
