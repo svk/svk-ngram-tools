@@ -41,5 +41,8 @@ test-ngread: test-ngread.o ngread.o $(GETOPTDIR)/getopt.o
 mkbins: mkbins.o ngread.o bins.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
-test-wordhash: test-wordhash.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
+test-wordhash: test-wordhash.o ngread.o $(GETOPTDIR)/getopt.o
+	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+
+test-wordhash-c: test-wordhash-c.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^

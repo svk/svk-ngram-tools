@@ -3,6 +3,10 @@
 #include <string>
 #include <tr1/unordered_map>
 
+#ifdef WORDHASH_DEBUG
+#include <iostream>
+#endif
+
 extern "C" {
 #include "ngread.h"
 }
@@ -13,6 +17,10 @@ class WordSet {
         std::tr1::unordered_map<std::string, int> nums;
 
     public:
+        WordSet() {
+            nums.rehash( 17961079 );
+        }
+
         void add(const char* s) {
             nums[ s ] = next++;
         }
@@ -24,6 +32,13 @@ class WordSet {
             }
             return -1;
         }
+
+#ifdef WORDHASH_DEBUG
+        void printInfo(void) const {
+            std::cout << "Buckets: " << nums.bucket_count() << "/" << nums.max_bucket_count() << std::endl;
+            std::cout << "Load factor: " << nums.load_factor() << "/" << nums.max_load_factor() << std::endl;
+        }
+#endif
 };
 
 WordHashCtx read_wordhashes(const char* filename) {
