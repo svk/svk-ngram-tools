@@ -1,4 +1,5 @@
 CFLAGS=-std=c99 -g
+CPPFLAGS=-g
 CC=gcc
 LDFLAGS=-lz
 CPPC=g++
@@ -46,3 +47,9 @@ test-wordhash: test-wordhash.o ngread.o $(GETOPTDIR)/getopt.o
 
 test-wordhash-c: test-wordhash-c.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+
+hashbins-to-sfbti: hashbins-to-sfbti.o hashbin.o semifile.o sfbti.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
+	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+
+sfbti-hashbins-lookup: sfbti-hashbins-lookup.o wordhash.o hashbin.o semifile.o sfbti.o ngread.o $(GETOPTDIR)/getopt.o
+	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^

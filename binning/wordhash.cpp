@@ -17,7 +17,7 @@ class WordSet {
         std::tr1::unordered_map<std::string, int> nums;
 
     public:
-        WordSet() {
+        WordSet() : next(0) {
             nums.rehash( 17961079 );
         }
 
@@ -53,7 +53,11 @@ WordHashCtx read_wordhashes(const char* filename) {
 
 int lookup_wordhash( WordHashCtx ctx, const char *s ) {
     WordSet* ws = reinterpret_cast<WordSet*>( ctx );
-    return ws->lookup( s );
+    int rv = ws->lookup( s );
+#ifdef WORDHASH_DEBUG
+    std::cerr << "looking up " << s << " got result " << rv << std::endl;
+#endif
+    return rv;
 }
 
 void free_wordhashes(WordHashCtx ctx) {

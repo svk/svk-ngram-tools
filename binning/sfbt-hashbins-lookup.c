@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     char *suffix = ".sfbt";
 
     while(1) {
-        int c = getopt( argc, argv, "vcn:o:B:p:U:I:" );
+        int c = getopt( argc, argv, "vcn:o:B:p:U:I:V:" );
         if( c < 0 ) break;
         switch( c ) {
             case 'c':

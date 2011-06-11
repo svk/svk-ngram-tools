@@ -140,12 +140,9 @@ int sfbti_write_root( struct sfbti_wctx* wctx ) {
 }
 
 int sfbti_finalize( struct sfbti_wctx* wctx ) {
-    fprintf( stderr, "flushin\n" );
     if( sfbti_flush_record( wctx ) ) return 1;
     do {
-        fprintf( stderr, "checkin\n" );
         int rv = sfbti_check_last_child_gen_at( wctx, wctx->current_generation_foffset );
-        fprintf( stderr, "check'd\n" );
         if( rv < 0 ) return 1;
         if( rv ) break;
         if( sfbti_write_parents( wctx ) ) return 1;
