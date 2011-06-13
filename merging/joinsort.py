@@ -16,6 +16,12 @@ while files:
     bufs = [ b for b in bufs if b ]
     if not files:
         break
-    j = min( range(len(bufs)), key = lambda i : bufs[i][0][0] )
+#    j = min( range(len(bufs)), key = lambda i : bufs[i][0][0] ) # GAH not present in old Python
+    j = 0
+    best = None
+    for k in range(len(bufs)):
+        if (best == None) or (bufs[j][0][0] < best):
+            j = k
+            best = bufs[k][0][0]
     key, value = bufs[j].pop(0)
     print "%s\t%s" % (key,value)
