@@ -5,7 +5,7 @@ LDFLAGS=-lz
 CPPC=g++
 
 GETOPTDIR=../lib/freegetopt-0.11
-BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin
+BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin hashbins-to-sfbt hashbins-to-sfbti sfbti-hashbins-lookup sfbt-hashbins-lookup
 
 all: $(BINARIES)
 
