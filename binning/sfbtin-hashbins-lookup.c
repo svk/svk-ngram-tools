@@ -174,7 +174,8 @@ int main(int argc, char* argv[]) {
             isequence[i] = lookup_wordhash( words, colkey );
             uint32_t wordkey = isequence[i];
 
-			int n = classify_uint32( no_bins, murmur_hash( colkey, strlen(colkey) ) );
+                // XXX changed!
+			int n = classify_uint32( no_bins, murmur_hash( (char*) &wordkey, 4 ) );
             index *= no_bins;
             index += n;
 #if 0
@@ -183,7 +184,7 @@ int main(int argc, char* argv[]) {
 			}
 #endif
 
-            fprintf( stderr, "Looked up \"%s\" as %d\n", colkey, isequence[i] );
+//            fprintf( stderr, "Looked up \"%s\" as %d\n", colkey, isequence[i] );
             if( isequence[i] < 0 ) {
                 toknotfound = 1;
             }

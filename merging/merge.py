@@ -12,7 +12,11 @@ while True:
     for v in vs:
         if not v:
             break
-        key, value = v.strip().split("\t")
+        try:
+            key, value = v.strip().split("\t")
+        except:
+            print >> stderr, "input was", repr(v)
+            raise
         if key == lastKey:
             lastValue += int(value)
         elif lastKey:

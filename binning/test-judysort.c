@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
         judysort_insert_test( a, b, c, d, e, 100 );
     }
 
-    Word_t rv = judysort_dump_free( 5, judysort_dump_output_test );
+    Word_t rv = judysort_dump_free( 5, judysort_dump_output_test, 0 );
 
     fprintf( stderr, "memory used: %ld\n", rv );
 

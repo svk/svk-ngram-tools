@@ -1,11 +1,16 @@
 CFLAGS=-std=c99 -g
 CPPFLAGS=-g
 CC=gcc
-LDFLAGS=-lz
+LDFLAGS=-lz -lJudy
 CPPC=g++
 
 GETOPTDIR=../lib/freegetopt-0.11
-BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin hashbins-to-sfbt hashbins-to-sfbti sfbti-hashbins-lookup sfbt-hashbins-lookup
+BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin hashbins-to-sfbt hashbins-to-sfbti sfbti-hashbins-lookup sfbt-hashbins-lookup test-judysort judysort-prepare-tapes mergetapes-to-sfbtin
+
+RAW_VOCABULARY=../data/vocab.gz
+PROCESSED_VOCABULARY=../data/vocab.altered.4.gz
+TEMP_TAPES=./temp-tapes/
+TEST_TRANSFORMED_INPUT=../data/transformed.txt
 
 all: $(BINARIES)
 
@@ -14,6 +19,13 @@ clean:
 	rm -f a.out
 	rm -f $(GETOPTDIR)/*.o
 	rm -f $(BINARIES)
+
+test-sfbtin.output: $(PROCESSED_VOCABULARY) judysort-prepare-tapes mergetapes-to-sfbtin
+	rm -rf $(TEMP_TAPES)
+	rm -rf test_sfbtin.output
+	mkdir $(TEMP_TAPES)
+	./judysort-prepare-tapes -V $(PROCESSED_VOCABULARY) -W -n 5 -P $(TEMP_TAPES) -L 20000000 < $(TEST_TRANSFORMED_INPUT)
+	./mergetapes-to-sfbtin -c -B 5 -o test-sfbtin.output -n 5 -p 2
 
 showbin: showbin.o bins.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
@@ -53,3 +65,18 @@ hashbins-to-sfbti: hashbins-to-sfbti.o hashbin.o semifile.o sfbti.o ngread.o wor
 
 sfbti-hashbins-lookup: sfbti-hashbins-lookup.o wordhash.o hashbin.o semifile.o sfbti.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
+
+sfbtin-hashbins-lookup: sfbtin-hashbins-lookup.o wordhash.o hashbin.o semifile.o sfbti.o ngread.o $(GETOPTDIR)/getopt.o
+	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
+
+test-judysort: test-judysort.o judysort.o
+	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
+
+judysort-prepare-tapes: judysort-prepare-tapes.o judysort.o $(GETOPTDIR)/getopt.o wordhash.o ngread.o
+	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
+
+test-mergetapes: test-mergetapes.o mergetapes.o
+	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
+
+mergetapes-to-sfbtin: mergetapes-to-sfbtin.o mergetapes.o hashbin.o semifile.o sfbti.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
+	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^

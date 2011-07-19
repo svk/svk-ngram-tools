@@ -7,4 +7,4 @@ echo "Out-file prefix: $OUTFILE_PREFIX"
 time python transform.py < $1 | python wildcard.py | python splitsort.py $TEMP_PREFIX
 ls $TEMP_PREFIX* | wc
 time python joinsort.py $TEMP_PREFIX* | python merge.py | python split.py $OUTFILE_PREFIX
-rm $TEMP_PREFIX*
+#rm $TEMP_PREFIX*
