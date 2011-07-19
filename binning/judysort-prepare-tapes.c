@@ -1,0 +1,199 @@
+#include "ngread.h"
+#include "hashbin.h"
+#include "sfbti.h"
+
+#include "../lib/freegetopt-0.11/getopt.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <assert.h>
+
+#include <string.h>
+
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "wordhash.h"
+
+#include "judysort.h"
+
+const char *next_name(void) {
+    static char buffer[1024];
+    static int count = 1;
+    sprintf( buffer, "%08d", count++ );
+    return buffer;
+}
+
+int main(int argc, char* argv[]) {
+    int N = -1;
+    int verbose = 0;
+    char *prefix = "sorted.";
+    char *suffix = ".tape.gz";
+    char *vocfile = 0;
+    int limit = 5000000;
+    int add_wildcards = 0;
+
+    while(1) {
+        int c = getopt( argc, argv, "vcWn:o:B:p:U:I:V:L:P:" );
+        if( c < 0 ) break;
+        switch( c ) {
+            case 'W':
+                add_wildcards = 1;
+                break;
+            case 'P':
+                prefix = optarg;
+                break;
+            case 'L':
+                limit = atoi( optarg );
+                break;
+            case 'U':
+                if( optarg ) {
+                    suffix = optarg;
+                } else {
+                    suffix = "";
+                }
+                break;
+            case 'V':
+                vocfile = optarg;
+                break;
+            case 'n':
+                N = atoi( optarg );
+                break;
+            case 'v':
+                verbose = 1;
+                break;
+            default:
+                fprintf(stderr, "unknown option: '%c'\n", c );
+                exit(1);
+        }
+    }
+    int argi = optind;
+
+    if( N < 0 ) {
+        fprintf( stderr, "fatal error: input argument -n (length of n-grams) missing\n" );
+        return 1;
+    }
+
+    if( !vocfile ) {
+        fprintf( stderr, "fatal error: input argument -V (vocabulary file) missing\n" );
+        return 1;
+    }
+
+
+    char *fnbuffer = malloc(strlen(prefix) + strlen(suffix) + 1024);
+    assert( fnbuffer );
+    int *xs = malloc(sizeof *xs * N );
+    assert( xs );
+
+    int pp_unk_id;
+
+    int wildcard_id = -1;
+    
+    if( verbose ) {
+        fprintf( stderr, "Parameters:\n" );
+        fprintf( stderr, "\tn: %d-grams\n", N );
+        fprintf( stderr, "\tL: limit %d\n", limit );
+        fprintf( stderr, "\tReading from stdin\n" );
+        if( add_wildcards ) {
+            fprintf( stderr, "\tAdding wildcards.\n" );
+        }
+        if( verbose ) {
+            fprintf( stderr, "\tLoading:\n" );
+        }
+    }
+
+    long long processed = 0;
+
+    char buffer[ 4096 ], keybuf[ 4096 ];
+
+    fprintf( stderr, "Generating token hashes...\n" );
+    WordHashCtx words = read_wordhashes( vocfile );
+    fprintf( stderr, "Finished generating token hashes.\n" );
+
+    if( add_wildcards ) {
+        wildcard_id = lookup_wordhash( words, "<*>" );
+        assert( wildcard_id > 0 );
+    }
+
+    pp_unk_id = lookup_wordhash( words, "<PP_UNK>" );
+    assert( pp_unk_id > 0 );
+
+
+    gzFile output_file;
+
+
+    judysort_initialize();
+
+    while(1) {
+        if(!fgets( buffer, 4096, stdin )) break;
+        char *key = strtok( buffer, "\t" );
+        strcpy( keybuf, key );
+        char *countstr = strtok( 0, "\n" );
+        char *colkey = strtok( buffer, " \t" );
+        uint32_t isequence[ N ];
+        int toknotfound = 0;
+        uint64_t count = atoll( countstr );
+
+        for(int i=0;i<N;i++) {
+            if( !colkey ) break;
+            int x = lookup_wordhash( words, colkey );
+            if( x < 0 ) {
+                fprintf( stderr, "warning: <PP_UNK>, \"%s\"\n", colkey );
+                x = pp_unk_id;
+            }
+            isequence[i] = (uint32_t) x;
+
+            colkey = strtok( 0, " \t" );
+        }
+
+        if( !add_wildcards ) {
+            judysort_insert( isequence, N, count );
+
+            ++processed;
+
+            if( judysort_get_count() >= limit ) {
+                sprintf( fnbuffer, "%s%s%s", prefix, next_name(), suffix );
+                output_file = gzopen( fnbuffer, "wb" );
+                fprintf( stderr, "Dumping to \"%s\" (%lld processed).\n", fnbuffer, processed );
+                long long int memfreed = judysort_dump_free( N, judysort_dump_output_gzfile, &output_file );
+                gzclose( output_file );
+                fprintf( stderr, "Dumping done (used %lld bytes).\n", memfreed );
+            }
+        } else {
+            int iseqa[ N ];
+            const int k = 1 << N;
+            for(int j=0;j<k;j++) {
+                for(int i=0;i<N;i++) {
+                    iseqa[ i ] = ((1<<i) & j) ? isequence[i] : wildcard_id;
+                }
+                judysort_insert( iseqa, N, count );
+
+                ++processed;
+
+                if( judysort_get_count() >= limit ) {
+                    sprintf( fnbuffer, "%s%s%s", prefix, next_name(), suffix );
+                    output_file = gzopen( fnbuffer, "wb" );
+                    fprintf( stderr, "Dumping to \"%s\" (%lld processed, after %dx wildcarding).\n", fnbuffer, processed, k );
+                    long long int memfreed = judysort_dump_free( N, judysort_dump_output_gzfile, &output_file );
+                    gzclose( output_file );
+                    fprintf( stderr, "Dumping done (used %lld bytes).\n", memfreed );
+                }
+            }
+
+        }
+    }
+
+    sprintf( fnbuffer, "%s%s%s", prefix, next_name(), suffix );
+    output_file = gzopen( fnbuffer, "wb" );
+    fprintf( stderr, "Final-dumping to \"%s\" (%lld processed, %lld unique).\n", fnbuffer, processed, judysort_get_count() );
+    long long int memfreed = judysort_dump_free( N, judysort_dump_output_gzfile, &output_file );
+    gzclose( output_file );
+    fprintf( stderr, "Dumping done (used %lld bytes).\n", memfreed );
+
+    free_wordhashes( words );
+    free( xs );
+    free( fnbuffer );
+
+    return 0;
+}
