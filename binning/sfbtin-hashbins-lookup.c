@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
     int confirmed = 0;
     char *IDN = 0;
     int prefix_digits = 0;
-    char *suffix = ".sfbti";
+    char *suffix = ".sfbtin";
     char *vocfile = 0;
 
     while(1) {

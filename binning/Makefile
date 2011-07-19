@@ -8,7 +8,9 @@ GETOPTDIR=../lib/freegetopt-0.11
 BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin hashbins-to-sfbt hashbins-to-sfbti sfbti-hashbins-lookup sfbt-hashbins-lookup test-judysort judysort-prepare-tapes mergetapes-to-sfbtin
 
 RAW_VOCABULARY=../data/vocab.gz
-PROCESSED_VOCABULARY=../data/vocab.altered.4.gz
+TRANSFORMER=../working/transformer.gz
+PROCESSED_VOCABULARY=../working/vocabulary.gz
+TEST_5GRAMS=../data/5gm-0015.gz
 TEMP_TAPES=./temp-tapes/
 TEST_TRANSFORMED_INPUT=../data/transformed.txt
 
@@ -20,12 +22,18 @@ clean:
 	rm -f $(GETOPTDIR)/*.o
 	rm -f $(BINARIES)
 
-test-sfbtin.output: $(PROCESSED_VOCABULARY) judysort-prepare-tapes mergetapes-to-sfbtin
+$(TRANSFORMER): ../merging/transform.py ../merging/transform-vocab-unsorted.py $(RAW_VOCABULARY)
+	python ../merging/transform-vocab-unsorted.py $(RAW_VOCABULARY) $(TRANSFORMER) $(PROCESSED_VOCABULARY)
+
+$(PROCESSED_VOCABULARY): ../merging/transform.py ../merging/transform-vocab-unsorted.py $(RAW_VOCABULARY)
+	python ../merging/transform-vocab-unsorted.py $(RAW_VOCABULARY) $(TRANSFORMER) $(PROCESSED_VOCABULARY)
+
+test-sfbtin.output: $(TRANSFORMER) judysort-prepare-tapes mergetapes-to-sfbtin
 	rm -rf $(TEMP_TAPES)
 	rm -rf test_sfbtin.output
 	mkdir $(TEMP_TAPES)
-	./judysort-prepare-tapes -V $(PROCESSED_VOCABULARY) -W -n 5 -P $(TEMP_TAPES) -L 20000000 < $(TEST_TRANSFORMED_INPUT)
-	./mergetapes-to-sfbtin -c -B 5 -o test-sfbtin.output -n 5 -p 2
+	zcat $(TEST_5GRAMS) | ./judysort-prepare-tapes -T $(TRANSFORMER) -W -n 5 -P $(TEMP_TAPES) -L 20000000
+	./mergetapes-to-sfbtin -c -B 5 -o test-sfbtin.output -n 5 -p 2 $(TEMP_TAPES)/*
 
 showbin: showbin.o bins.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
