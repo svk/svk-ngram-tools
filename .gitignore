@@ -1,5 +1,6 @@
 data/
 lib/
+working/
 *.pyc
 *.o
 callgrind*
