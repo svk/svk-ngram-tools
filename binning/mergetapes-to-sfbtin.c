@@ -154,6 +154,12 @@ int main(int argc, char* argv[]) {
         }
     }
 
+#if 0
+    for(int i=0;i<no_files;i++) {
+        fprintf( stderr, "%p\n", &files[ no_files ] );
+    }
+#endif
+
 
     int passno = 1;
     long long fdno = 0;
