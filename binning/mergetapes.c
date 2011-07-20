@@ -149,7 +149,8 @@ void mertap_file_close( struct mertap_file* f ) {
 }
 
 int mertap_file_read_peek( struct mertap_file* f ) {
-    const int sz = mertap_n * 4 + 8;
+    const int keysz = mertap_n * 4;
+    const int sz = keysz + 8;
 //    fprintf( stderr, "in %p fill %d offset %d\n", f, f->fill, f->offset );
     if( f->fill < sz ) {
         if( f->fill > 0 ) {
@@ -165,7 +166,8 @@ int mertap_file_read_peek( struct mertap_file* f ) {
 
         return mertap_file_read_peek( f );
     }
-    assert( sizeof f->peek == sz );
+    memcpy( (void*) f->peek.key, &f->buffer[ f->offset ], keysz );
+    memcpy( (void*) &f->peek.count, &f->buffer[ f->offset + keysz ], 8 );
 //   fprintf( stderr, "memcp offset is %d fill is %d\n", f->offset, f->fill );
     memcpy( &f->peek, &f->buffer[ f->offset ], sz );
     f->offset += sz;
