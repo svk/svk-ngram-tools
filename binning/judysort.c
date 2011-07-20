@@ -12,7 +12,8 @@ void judysort_initialize(void) {
     judy_table = 0;
     judy_count = 0;
 //    assert( sizeof (Word_t) >= 8 );
-    if( sizeof(Word_t) <= 8 ) {
+    fprintf( stderr, "Word_t is of size %d bytes\n", sizeof(Word_t) );
+    if( sizeof(Word_t) < 8 ) {
         fprintf( stderr, "WARNING: judysort running on a 32-bit system -- counts WILL overflow\n" );
     }
 }
