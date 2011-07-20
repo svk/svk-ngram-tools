@@ -6,6 +6,7 @@
 
 #define MAX_N 5
 #define MAX_HEAP_FILES 500
+#define BUFFER_SIZE 4096
 
 struct mertap_record {
     uint32_t key[ MAX_N ];
@@ -16,6 +17,10 @@ struct mertap_file {
     gzFile sorted_input;
 
     struct mertap_record peek;
+
+    unsigned char *buffer;
+    int offset, fill;
+
 };
 
 struct mertap_heap {

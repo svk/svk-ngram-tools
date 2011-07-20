@@ -91,6 +91,7 @@ int mertap_loop( struct mertap_file *files, int no_files, int (*f)(struct mertap
 
     heap.no_files = 0;
     for(int i=0;i<no_files;i++) {
+//        fprintf( stderr, "pushing file %p\n", &files[i] );
         mertap_heap_read_push_or_finish( &heap, &files[i] );
     }
 
@@ -99,11 +100,13 @@ int mertap_loop( struct mertap_file *files, int no_files, int (*f)(struct mertap
     struct mertap_record buf;
 
     struct mertap_file *topfile = mertap_heap_pop( &heap );
+//    fprintf( stderr, "popped file %p\n", topfile );
     memcpy( &buf, &topfile->peek, sizeof buf );
     mertap_heap_read_push_or_finish( &heap, topfile );
 
     while( !MERTAP_HEAP_EMPTY( &heap ) ) {
         topfile = mertap_heap_pop( &heap );
+//        fprintf( stderr, "popped file %p\n", topfile );
         if( !mertap_cmp( &buf, &topfile->peek ) ) {
             buf.count += topfile->peek.count;
         } else {
@@ -119,8 +122,18 @@ int mertap_loop( struct mertap_file *files, int no_files, int (*f)(struct mertap
 }
 
 int mertap_file_open( struct mertap_file* f, const char *filename) {
+    f->buffer = malloc( BUFFER_SIZE );
+    if( !f->buffer ) {
+        return 1;
+    }
     f->sorted_input = gzopen( filename, "rb" );
-    return f->sorted_input == NULL;
+    if( f->sorted_input == NULL ) {
+        free( f->buffer );
+        return 1;
+    }
+    f->fill = f->offset = 0;
+//    fprintf( stderr, "succ init %p\n", f );
+    return 0;
 }
 
 void mertap_file_close( struct mertap_file* f ) {
@@ -128,16 +141,35 @@ void mertap_file_close( struct mertap_file* f ) {
         gzclose( f->sorted_input );
         f->sorted_input = 0;
     }
+    if( f->buffer ) {
+        free( f->buffer );
+        f->buffer = 0;
+    }
+    f->fill = f->offset = 0;
 }
 
 int mertap_file_read_peek( struct mertap_file* f ) {
-    int rv;
-    for(int i=0;i<mertap_n;i++) {
-        rv = gzread( f->sorted_input, &f->peek.key[i], sizeof f->peek.key[i] );
-        if( !rv ) return 1;
-        if( rv != sizeof f->peek.key[i] ) return -1;
+    const int sz = mertap_n * 4 + 8;
+//    fprintf( stderr, "in %p fill %d offset %d\n", f, f->fill, f->offset );
+    if( f->fill < sz ) {
+        if( f->fill > 0 ) {
+            memmove( f->buffer, &f->buffer[ f->offset ], f->fill );
+        }
+        f->offset = 0;
+//        fprintf( stderr, "fill is %d buf is %p\n", f->fill, f->buffer );
+        int bytes = gzread( f->sorted_input, &f->buffer[ f->fill ], BUFFER_SIZE - f->fill );
+        if( !f->fill && !bytes ) return 1;
+        if( bytes < 0 ) return -1;
+
+        f->fill += bytes;
+
+        return mertap_file_read_peek( f );
     }
-    rv = gzread( f->sorted_input, &f->peek.count, sizeof f->peek.count );
-    if( rv != sizeof f->peek.count ) return -1;
+    assert( sizeof f->peek == sz );
+//   fprintf( stderr, "memcp offset is %d fill is %d\n", f->offset, f->fill );
+    memcpy( &f->peek, &f->buffer[ f->offset ], sz );
+    f->offset += sz;
+    f->fill -= sz;
+//    fprintf( stderr, "amemcp offset is %d fill is %d\n", f->offset, f->fill );
     return 0;
 }
