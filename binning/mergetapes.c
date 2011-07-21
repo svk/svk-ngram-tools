@@ -106,12 +106,12 @@ int mertap_loop( struct mertap_file *files, int no_files, int (*f)(struct mertap
 
     while( !MERTAP_HEAP_EMPTY( &heap ) ) {
         topfile = mertap_heap_pop( &heap );
-//        fprintf( stderr, "popped file %p\n", topfile );
+//        fprintf( stderr, "popped file %p w %lld\n", topfile, topfile->peek.count );
         if( !mertap_cmp( &buf, &topfile->peek ) ) {
             buf.count += topfile->peek.count;
         } else {
-            if( f( &buf, arg ) ) return 1;
             memcpy( &buf, &topfile->peek, sizeof buf );
+            if( f( &buf, arg ) ) return 1;
         }
         mertap_heap_read_push_or_finish( &heap, topfile );
     }
@@ -169,7 +169,6 @@ int mertap_file_read_peek( struct mertap_file* f ) {
     memcpy( (void*) f->peek.key, &f->buffer[ f->offset ], keysz );
     memcpy( (void*) &f->peek.count, &f->buffer[ f->offset + keysz ], 8 );
 //   fprintf( stderr, "memcp offset is %d fill is %d\n", f->offset, f->fill );
-    memcpy( &f->peek, &f->buffer[ f->offset ], sz );
     f->offset += sz;
     f->fill -= sz;
 //    fprintf( stderr, "amemcp offset is %d fill is %d\n", f->offset, f->fill );
