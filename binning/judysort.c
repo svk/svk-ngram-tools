@@ -5,13 +5,9 @@
 
 #include <zlib.h>
 
-static Pvoid_t judy_table;
-static int judy_count;
-
-void judysort_initialize(void) {
-    judy_table = 0;
-    judy_count = 0;
-//    assert( sizeof (Word_t) >= 8 );
+void judysort_initialize(struct judysort_context* ctx) {
+    ctx->pointer = 0;
+    ctx->count = 0;
     fprintf( stderr, "Word_t is of size %d bytes\n", sizeof(Word_t) );
     if( sizeof(Word_t) < 8 ) {
         fprintf( stderr, "WARNING: judysort running on a 32-bit system -- counts WILL overflow\n" );
@@ -23,11 +19,11 @@ union sortable_record_key {
     uint8_t key[MAX_SYMBOLS*4];
 };
 
-void judysort_insert( const uint32_t* keys, int n, int64_t count) {
-    Pvoid_t root_table = judy_table;
+void judysort_insert( struct judysort_context* ctx, const uint32_t* keys, int n, int64_t count) {
+    Pvoid_t root_table = ctx->pointer;
     Word_t * jvalue = (void*) &root_table;
 
-    Pvoid_t *current_table = &judy_table;
+    Pvoid_t *current_table = &ctx->pointer;
 
     for(int i=0;i<n;i++) {
         JLI( jvalue, *current_table, keys[i] );
@@ -39,19 +35,19 @@ void judysort_insert( const uint32_t* keys, int n, int64_t count) {
     }
 
     if( !*jvalue ) {
-        judy_count++;
+        ctx->count++;
     }
 
     *jvalue = (Word_t) (count + (uint64_t) *jvalue);
 }
 
-int judysort_get_count(void) {
-    return judy_count;
+int judysort_get_count(struct judysort_context *ctx) {
+    return ctx->count;
 }
 
-void judysort_insert_test( int a, int b, int c, int d, int e, int64_t count ) {
+void judysort_insert_test( struct judysort_context* ctx, int a, int b, int c, int d, int e, int64_t count ) {
     uint32_t abcde[5] = { a, b, c, d, e };
-    judysort_insert( abcde, 5, count );
+    judysort_insert( ctx, abcde, 5, count );
 }
 
 Word_t judysort_dump_free_st(Pvoid_t jarr, int n, int i, int (*f)(int*,int,int64_t, void*), void *arg) {
@@ -91,11 +87,11 @@ Word_t judysort_dump_free_st(Pvoid_t jarr, int n, int i, int (*f)(int*,int,int64
     return rc_word + subtables_freed;
 };
 
-long long judysort_dump_free(int n, int (*f)(int*,int,int64_t,void*), void *arg ) {
-    Word_t rv = judysort_dump_free_st( judy_table, n, 0, f, arg );
+long long judysort_dump_free(struct judysort_context* ctx, int n, int (*f)(int*,int,int64_t,void*), void *arg ) {
+    Word_t rv = judysort_dump_free_st( ctx->pointer, n, 0, f, arg );
 
-    judy_table = 0;
-    judy_count = 0;
+    ctx->pointer = 0;
+    ctx->count = 0;
 
     return rv;
 }

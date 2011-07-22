@@ -46,6 +46,7 @@ int main(int argc, char* argv[]) {
     int limit = 5000000;
     int add_wildcards = 0;
     char *transformerfile = 0;
+    struct judysort_context judy_ctx;
 
     while(1) {
         int c = getopt( argc, argv, "vcWn:o:B:p:U:I:V:L:P:T:" );
@@ -168,7 +169,7 @@ int main(int argc, char* argv[]) {
     gzFile output_file;
 
 
-    judysort_initialize();
+    judysort_initialize(&judy_ctx);
 
     while(1) {
         if(!fgets( buffer, 4096, stdin )) break;
@@ -193,15 +194,15 @@ int main(int argc, char* argv[]) {
         }
 
         if( !add_wildcards ) {
-            judysort_insert( isequence, N, count );
+            judysort_insert( &judy_ctx, isequence, N, count );
 
             ++processed;
 
-            if( judysort_get_count() >= limit ) {
+            if( judysort_get_count(&judy_ctx) >= limit ) {
                 sprintf( fnbuffer, "%s%s%s", prefix, next_name(), suffix );
                 output_file = gzopen( fnbuffer, "wb" );
                 fprintf( stderr, "Dumping to \"%s\" (%lld processed).\n", fnbuffer, processed );
-                long long int memfreed = judysort_dump_free( N, judysort_dump_output_gzfile, &output_file );
+                long long int memfreed = judysort_dump_free( &judy_ctx, N, judysort_dump_output_gzfile, &output_file );
                 gzclose( output_file );
                 fprintf( stderr, "Dumping done (used %lld bytes).\n", memfreed );
             }
@@ -212,15 +213,15 @@ int main(int argc, char* argv[]) {
                 for(int i=0;i<N;i++) {
                     iseqa[ i ] = ((1<<i) & j) ? isequence[i] : wildcard_id;
                 }
-                judysort_insert( iseqa, N, count );
+                judysort_insert( &judy_ctx, iseqa, N, count );
 
                 ++processed;
 
-                if( judysort_get_count() >= limit ) {
+                if( judysort_get_count(&judy_ctx) >= limit ) {
                     sprintf( fnbuffer, "%s%s%s", prefix, next_name(), suffix );
                     output_file = gzopen( fnbuffer, "wb" );
                     fprintf( stderr, "Dumping to \"%s\" (%lld processed, after %dx wildcarding).\n", fnbuffer, processed, k );
-                    long long int memfreed = judysort_dump_free( N, judysort_dump_output_gzfile, &output_file );
+                    long long int memfreed = judysort_dump_free( &judy_ctx, N, judysort_dump_output_gzfile, &output_file );
                     gzclose( output_file );
                     fprintf( stderr, "Dumping done (used %lld bytes).\n", memfreed );
                 }
@@ -231,8 +232,8 @@ int main(int argc, char* argv[]) {
 
     sprintf( fnbuffer, "%s%s%s", prefix, next_name(), suffix );
     output_file = gzopen( fnbuffer, "wb" );
-    fprintf( stderr, "Final-dumping to \"%s\" (%lld processed, %d unique).\n", fnbuffer, processed, judysort_get_count() );
-    long long int memfreed = judysort_dump_free( N, judysort_dump_output_gzfile, &output_file );
+    fprintf( stderr, "Final-dumping to \"%s\" (%lld processed, %d unique).\n", fnbuffer, processed, judysort_get_count(&judy_ctx) );
+    long long int memfreed = judysort_dump_free( &judy_ctx, N, judysort_dump_output_gzfile, &output_file );
     gzclose( output_file );
     fprintf( stderr, "Dumping done (used %lld bytes).\n", memfreed );
 
