@@ -110,8 +110,8 @@ int mertap_loop( struct mertap_file *files, int no_files, int (*f)(struct mertap
         if( !mertap_cmp( &buf, &topfile->peek ) ) {
             buf.count += topfile->peek.count;
         } else {
-            memcpy( &buf, &topfile->peek, sizeof buf );
             if( f( &buf, arg ) ) return 1;
+            memcpy( &buf, &topfile->peek, sizeof buf );
         }
         mertap_heap_read_push_or_finish( &heap, topfile );
     }

@@ -180,10 +180,10 @@ int main(int argc, char* argv[]) {
 #if 0
 			if( verbose ) {
 				fprintf( stderr, "Classified \"%s\" as %d\n", colkey, n );
+                fprintf( stderr, "Looked up \"%s\" as %d\n", colkey, isequence[i] );
 			}
 #endif
 
-            fprintf( stderr, "Looked up \"%s\" as %d\n", colkey, isequence[i] );
             if( isequence[i] < 0 ) {
                 toknotfound = 1;
             }

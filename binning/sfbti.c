@@ -195,7 +195,7 @@ int sfbti_new_leaf_record( struct sfbti_wctx* wctx ) {
     return 1;
 }
 
-int sfbti_add_entry( struct sfbti_wctx* wctx, const int * key, int64_t count) {
+int sfbti_add_entry( struct sfbti_wctx* wctx, const int * key, int ngram_size, int64_t count) {
     do {
 
         if( wctx->current_record.entries == KEYS_PER_RECORD ) {
@@ -205,7 +205,7 @@ int sfbti_add_entry( struct sfbti_wctx* wctx, const int * key, int64_t count) {
         assert( wctx->current_record.entries < KEYS_PER_RECORD );
 
         int i = wctx->current_record.entries++;
-        for(int j=0;j<NGRAM_SIZE;j++) {
+        for(int j=0;j<ngram_size;j++) {
             // assumes little endian!
             memcpy( &wctx->current_record.keyvals[i][TOKEN_SIZE*j], &key[j], TOKEN_SIZE );
         }
@@ -265,7 +265,7 @@ int sfbti_close_wctx(struct sfbti_wctx* wctx) {
     return rv;
 }
 
-int sfbti_find_index(struct sfbti_record* buf, const int* key, int exact) {
+int sfbti_find_index(struct sfbti_record* buf, const int* key, const int ngram_size, int exact) {
     int mn = 0, mx = buf->entries - 1;
 
     while( mn != mx ) {
@@ -274,13 +274,13 @@ int sfbti_find_index(struct sfbti_record* buf, const int* key, int exact) {
 
         int cr = 0;
 
-        for(int i=0;i<NGRAM_SIZE;i++) {
+        for(int i=0;i<ngram_size;i++) {
             int t = (*(int*)(&buf->keyvals[mp][TOKEN_SIZE*i]) & TOKEN_INT_MASK);
             if( key[i] < t ) {
                 // arg-key is earlier than rec-key
                 mx = mp - 1;
                 break;
-            } else if( key[i] > t || (i+1) == NGRAM_SIZE ) {
+            } else if( key[i] > t || (i+1) == ngram_size ) {
                 // arg-key is later or equal to rec-key
                 mn = mp;
                 break;
@@ -290,7 +290,7 @@ int sfbti_find_index(struct sfbti_record* buf, const int* key, int exact) {
     assert( mn == mx );
 
     if( exact ) {
-        for(int i=0;i<NGRAM_SIZE;i++) {
+        for(int i=0;i<ngram_size;i++) {
             int t = (*(int*)(&buf->keyvals[mn][TOKEN_SIZE*i]) & TOKEN_INT_MASK);
             if( t != key[i] ) return -1;
         }
@@ -298,7 +298,7 @@ int sfbti_find_index(struct sfbti_record* buf, const int* key, int exact) {
     return mn;
 }
 
-int sfbti_search(struct sfbti_rctx* rctx, const int* key, int64_t* count_out) {
+int sfbti_search(struct sfbti_rctx* rctx, const int* key, const int ngram_size, int64_t* count_out) {
     struct sfbti_cached_record *cache = rctx->root;
     struct sfbti_record *node = &cache->data;
 
@@ -307,7 +307,26 @@ int sfbti_search(struct sfbti_rctx* rctx, const int* key, int64_t* count_out) {
     }
 
     while( !(node->flags & FLAG_ENTRIES_ARE_LEAVES) ) {
-        int index = sfbti_find_index( node, key, 0 );
+        int index = sfbti_find_index( node, key, ngram_size, 0 );
+#if 0
+        for(int i=0;i<index;i++) {
+            fprintf( stderr, "[%04d] ", i );
+            for(int j=0;j<ngram_size;j++) {
+                int t = (*(int*)(&node->keyvals[i][TOKEN_SIZE*j]) & TOKEN_INT_MASK);
+                fprintf( stderr, "%s%d", (j>0)?":":"", t );
+            }
+            fprintf( stderr, "\n" );
+        }
+        fprintf( stderr, "finding index %d:%d:%d:%d:%d -> %d\n", key[0], key[1], key[2], key[3], key[4], index );
+        for(int i=index;i<node->entries;i++) {
+            fprintf( stderr, "[%04d] ", i );
+            for(int j=0;j<ngram_size;j++) {
+                int t = (*(int*)(&node->keyvals[i][TOKEN_SIZE*j]) & TOKEN_INT_MASK);
+                fprintf( stderr, "%s%d", (j>0)?":":"", t );
+            }
+            fprintf( stderr, "\n" );
+        }
+#endif
         if( index < 0 ) return 1;
         if( cache && cache->cached[index] ) {
             cache = cache->cached[index];
@@ -320,12 +339,14 @@ int sfbti_search(struct sfbti_rctx* rctx, const int* key, int64_t* count_out) {
             node = &rctx->buffer;
         }
     }
-    int index = sfbti_find_index( node, key, 1 );
+    int index = sfbti_find_index( node, key, ngram_size, 1 );
     if( index < 0 ) {
+//        fprintf( stderr, "unable to find %d:%d:%d:%d:%d\n", key[0], key[1], key[2], key[3], key[4] );
         *count_out = 0;
     } else {
         int64_t* countp = (int64_t*)&node->keyvals[index][KEY_SIZE];
         *count_out = *countp;
+//        fprintf( stderr, "found %d:%d:%d:%d:%d -> %lld\n", key[0], key[1], key[2], key[3], key[4], *count_out );
     }
 
     if( rctx->suspend ) {

@@ -1,7 +1,7 @@
 TITAN_CFLAGS=-I/ltg/steinavk/lib/include
 TITAN_LDFLAGS=-L/ltg/steinavk/lib/lib -Wl,-R/ltg/steinavk/lib/lib
-CFLAGS=-std=c99 -g $(TITAN_CFLAGS)
-CPPFLAGS=-g $(TITAN_CFLAGS)
+CFLAGS=-std=c99 -g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS)
+CPPFLAGS=-g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS)
 CC=gcc
 LDFLAGS=-lz -lJudy $(TITAN_LDFLAGS)
 CPPC=g++

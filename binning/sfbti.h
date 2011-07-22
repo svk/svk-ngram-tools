@@ -103,7 +103,7 @@ struct sfbti_wctx {
 };
 
 
-int sfbti_add_entry( struct sfbti_wctx*, const int *, int64_t);
+int sfbti_add_entry( struct sfbti_wctx*, const int *, const int, int64_t);
 int sfbti_new_leaf_record( struct sfbti_wctx*);
 int sfbti_flush_record( struct sfbti_wctx*);
 int sfbti_finalize( struct sfbti_wctx*);
@@ -137,11 +137,11 @@ struct sfbti_rctx {
 struct sfbti_cached_record* sfbti_cache_node(struct sfbti_rctx*, int);
 void sfbti_free_cache(struct sfbti_cached_record*);
 
-int sfbti_find_index(struct sfbti_record*, const int*,int);
+int sfbti_find_index(struct sfbti_record*, const int*, const int, int);
 int sfbti_open_rctx(const char*, struct sfbti_rctx*, int);
 int sfbti_close_rctx(struct sfbti_rctx*);
 int sfbti_readnode(struct sfbti_rctx*, struct sfbti_record* );
-int sfbti_search(struct sfbti_rctx*, const int*, int64_t*);
+int sfbti_search(struct sfbti_rctx*, const int*, const int, int64_t*);
 
 int sfbti_suspend_rctx(struct sfbti_rctx*);
 int sfbti_desuspend_rctx(struct sfbti_rctx*);

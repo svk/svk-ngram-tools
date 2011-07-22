@@ -181,10 +181,10 @@ int main(int argc, char* argv[]) {
 #if 0
 			if( verbose ) {
 				fprintf( stderr, "Classified \"%s\" as %d\n", colkey, n );
+                fprintf( stderr, "Looked up \"%s\" as %d\n", colkey, isequence[i] );
 			}
 #endif
 
-            fprintf( stderr, "Looked up \"%s\" as %d\n", colkey, isequence[i] );
             if( isequence[i] < 0 ) {
                 toknotfound = 1;
             }
@@ -206,7 +206,7 @@ int main(int argc, char* argv[]) {
         int64_t count = 0;
         int rv = 0;
         if( !toknotfound ) {
-            rv = sfbti_search( &histogram[index], isequence, &count );
+            rv = sfbti_search( &histogram[index], isequence, N, &count );
         }
         if( rv ) {
             fprintf( stderr, "warning: lookup error on \"%s\"\n", keybuf );
