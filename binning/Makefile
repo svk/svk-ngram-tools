@@ -7,7 +7,7 @@ LDFLAGS=-lz -lJudy $(TITAN_LDFLAGS)
 CPPC=g++
 
 GETOPTDIR=../lib/freegetopt-0.11
-BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin hashbins-to-sfbt hashbins-to-sfbti sfbti-hashbins-lookup sfbt-hashbins-lookup test-judysort judysort-prepare-tapes mergetapes-to-sfbtin
+BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin hashbins-to-sfbt hashbins-to-sfbti sfbti-hashbins-lookup sfbt-hashbins-lookup test-judysort judysort-prepare-tapes mergetapes-to-sfbtin sfbtin-hashbins-lookup
 
 RAW_VOCABULARY=../data/vocab.gz
 TRANSFORMER=../working/transformer.gz
@@ -15,6 +15,11 @@ PROCESSED_VOCABULARY=../working/vocabulary.gz
 TEST_5GRAMS=../data/5gm-0015.gz
 TEMP_TAPES=./temp-tapes/
 TEST_TRANSFORMED_INPUT=../data/transformed.txt
+TREE_DIR=../working/trees/
+TEMP_DIR=../../tmp/
+NGRAM_DIR=../../ngrams/data/
+
+JUDYSORT_ARGS=-L 100000000 -T $(TRANSFORMER) -W
 
 all: $(BINARIES)
 
@@ -23,6 +28,34 @@ clean:
 	rm -f a.out
 	rm -f $(GETOPTDIR)/*.o
 	rm -f $(BINARIES)
+
+$(TEMP_DIR)/tapes-2gram: judysort-prepare-tapes $(TRANSFORMER)
+	mkdir -p $@
+	zcat $(NGRAM_DIR)2gms/*.gz | ./judysort-prepare-tapes $(JUDYSORT_ARGS) -n 2 -P $(TEMP_DIR)/tapes-2gram/
+
+$(TEMP_DIR)/tapes-3gram: judysort-prepare-tapes $(TRANSFORMER)
+	mkdir -p $@
+	zcat $(NGRAM_DIR)3gms/*.gz | ./judysort-prepare-tapes $(JUDYSORT_ARGS) -n 3 -P $(TEMP_DIR)/tapes-3gram/
+
+$(TEMP_DIR)/tapes-4gram: judysort-prepare-tapes $(TRANSFORMER)
+	mkdir -p $@
+	zcat $(NGRAM_DIR)4gms/*.gz | ./judysort-prepare-tapes $(JUDYSORT_ARGS) -n 4 -P $(TEMP_DIR)/tapes-4gram/
+
+$(TEMP_DIR)/tapes-5gram: judysort-prepare-tapes $(TRANSFORMER)
+	mkdir -p $@
+	zcat $(NGRAM_DIR)5gms/*.gz | ./judysort-prepare-tapes $(JUDYSORT_ARGS) -n 5 -P $(TEMP_DIR)/tapes-5gram/
+
+tree-2gram: mergetapes-to-sfbtin
+	./mergetapes-to-sfbtin -c -F -n 2 -B 20 -p 1 -o $(TREE_DIR)/2gram $(TEMP_DIR)/tapes-2gram/*.gz
+
+tree-3gram: mergetapes-to-sfbtin
+	./mergetapes-to-sfbtin -c -F -n 3 -B 10 -p 1 -o $(TREE_DIR)/3gram $(TEMP_DIR)/tapes-3gram/*.gz
+
+tree-4gram: mergetapes-to-sfbtin
+	./mergetapes-to-sfbtin -c -F -n 4 -B 7 -p 2 -o $(TREE_DIR)/4gram $(TEMP_DIR)/tapes-4gram/*.gz
+
+tree-5gram: mergetapes-to-sfbtin
+	./mergetapes-to-sfbtin -c -F -n 5 -B 5 -p 2 -o $(TREE_DIR)/5gram $(TEMP_DIR)/tapes-5gram/*.gz
 
 $(TRANSFORMER): ../merging/transform.py ../merging/transform-vocab-unsorted.py $(RAW_VOCABULARY)
 	python ../merging/transform-vocab-unsorted.py $(RAW_VOCABULARY) $(TRANSFORMER) $(PROCESSED_VOCABULARY)
