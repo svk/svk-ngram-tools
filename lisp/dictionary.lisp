@@ -1,26 +1,11 @@
 #+asdf (progn
-	 (asdf:operate 'asdf:load-op :gzip-stream))
-
-(defun characters->string (chars)
-  (map 'string #'identity chars))
-
-(defun split-at-first (ch string)
-  (let ((flag nil)
-	(before nil)
-	(after nil))
-    (map nil
-      (lambda (c)
-	(if (eql c ch)
-	    (setf flag t)
-	  (if flag (push c after) (push c before))))
-      string)
-    (values (characters->string (reverse before))
-	    (characters->string (reverse after)))))
+	 (asdf:operate 'asdf:load-op :gzip-stream)
+	 (asdf:operate 'asdf:load-op :cl-utilities))
 
 (defun parse-dictionary-entry (string)
-  (multiple-value-bind (a b)
-      (split-at-first #\Tab string)
-    (values a (parse-integer b))))
+  (let ((sseq (cl-utilities:split-sequence #\Tab string :count 2)))
+    (values (car sseq)
+	    (parse-integer (cadr sseq)))))
 
 (defun read-dictionary-gzip (filename)
   (gzip-stream:with-open-gzip-file (stream filename :direction :input)
@@ -30,6 +15,7 @@
       (multiple-value-bind (key value)
 	  (parse-dictionary-entry line)
 	(setf (gethash key ht) value)))))
+
 
 (defun read-dictionary-uncompressed (filename)
   (with-open-file (stream filename :direction :input)
