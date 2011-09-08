@@ -11,6 +11,12 @@
    Tokens are sorted by integer value, so if alphabetical
    order is assumed anywhere else make sure the
    perfect hashes are assigned in order.
+   Also note difference between:
+        AAA BBB
+        AAAAA BBB
+    and
+        1,3
+        2,3
    
    Comments in sfbt.c also apply.
 */

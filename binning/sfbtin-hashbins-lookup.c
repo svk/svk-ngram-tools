@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
     int confirmed = 0;
     char *IDN = 0;
     int prefix_digits = 0;
-    char *suffix = ".sfbti";
+    char *suffix = ".sfbtin";
     char *vocfile = 0;
 
     while(1) {
@@ -174,7 +174,8 @@ int main(int argc, char* argv[]) {
             isequence[i] = lookup_wordhash( words, colkey );
             uint32_t wordkey = isequence[i];
 
-			int n = classify_uint32( no_bins, murmur_hash( colkey, strlen(colkey) ) );
+                // XXX changed!
+			int n = classify_uint32( no_bins, murmur_hash( (char*) &wordkey, 4 ) );
             index *= no_bins;
             index += n;
 #if 0
@@ -205,7 +206,7 @@ int main(int argc, char* argv[]) {
         int64_t count = 0;
         int rv = 0;
         if( !toknotfound ) {
-            sfbti_search( &histogram[index], isequence, &count );
+            rv = sfbti_search( &histogram[index], isequence, &count );
         }
         if( rv ) {
             fprintf( stderr, "warning: lookup error on \"%s\"\n", keybuf );

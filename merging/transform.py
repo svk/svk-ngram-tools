@@ -37,10 +37,11 @@ def transformation( s ):
     s = re.sub( digit, "0", s )
     return s
 
-while True:
-    v = stdin.readline()
-    if not v:
-        break
-    key, value = v.strip().split("\t")
-    key = " ".join( map( transformation, key.split() ) )
-    print "%s\t%s" % (key,value)
+if __name__ == '__main__':
+    while True:
+        v = stdin.readline()
+        if not v:
+            break
+        key, value = v.strip().split("\t")
+        key = " ".join( map( transformation, key.split() ) )
+        print "%s\t%s" % (key,value)
