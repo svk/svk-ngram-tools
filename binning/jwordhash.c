@@ -1,5 +1,7 @@
 #include "wordhash.h"
 
+#include "ngread.h"
+
 #include <Judy.h>
 
 WordHashCtx read_wordhashes(const char *filename) {
@@ -32,7 +34,7 @@ int lookup_wordhash( WordHashCtx ctx, const char * key ) {
     Word_t *value;
     JSLG( value, rv, key );
     if( !value ) {
-        return 0;
+        return -1;
     }
     return (int) *value;
 }

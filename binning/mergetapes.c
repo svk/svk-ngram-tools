@@ -161,6 +161,7 @@ int mertap_file_read_peek( struct mertap_file* f ) {
         int bytes = gzread( f->sorted_input, &f->buffer[ f->fill ], BUFFER_SIZE - f->fill );
         if( !f->fill && !bytes ) return 1;
         if( bytes < 0 ) return -1;
+        // TODO fix bytes==0
 
         f->fill += bytes;
 

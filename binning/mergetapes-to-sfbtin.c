@@ -278,7 +278,6 @@ int main(int argc, char* argv[]) {
 
         fprintf( stderr, "%lld %d-grams processed (%lld were hits).\n", processed, N, hits );
         
-                fprintf( stderr, "done printing message\n" );
         for(long long j=fdno;j<dmax;j++) {
             if( verbose ) {
                 fprintf( stderr, "Finalizing SFBT %lld of %lld.\n", j + 1, dmax );

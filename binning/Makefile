@@ -106,23 +106,23 @@ test-wordhash-c: test-wordhash-c.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
 test-wordhash-j: test-wordhash-c.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
-hashbins-to-sfbti: hashbins-to-sfbti.o hashbin.o semifile.o sfbti.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
+hashbins-to-sfbti: hashbins-to-sfbti.o hashbin.o semifile.o sfbti.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
-sfbti-hashbins-lookup: sfbti-hashbins-lookup.o wordhash.o hashbin.o semifile.o sfbti.o ngread.o $(GETOPTDIR)/getopt.o
+sfbti-hashbins-lookup: sfbti-hashbins-lookup.o jwordhash.o hashbin.o semifile.o sfbti.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
-sfbtin-hashbins-lookup: sfbtin-hashbins-lookup.o wordhash.o hashbin.o semifile.o sfbti.o ngread.o $(GETOPTDIR)/getopt.o
+sfbtin-hashbins-lookup: sfbtin-hashbins-lookup.o jwordhash.o hashbin.o semifile.o sfbti.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
 test-judysort: test-judysort.o judysort.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
-judysort-prepare-tapes: judysort-prepare-tapes.o judysort.o $(GETOPTDIR)/getopt.o wordhash.o ngread.o
+judysort-prepare-tapes: judysort-prepare-tapes.o judysort.o $(GETOPTDIR)/getopt.o jwordhash.o ngread.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
 test-mergetapes: test-mergetapes.o mergetapes.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
-mergetapes-to-sfbtin: mergetapes-to-sfbtin.o mergetapes.o hashbin.o semifile.o sfbti.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
+mergetapes-to-sfbtin: mergetapes-to-sfbtin.o mergetapes.o hashbin.o semifile.o sfbti.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
