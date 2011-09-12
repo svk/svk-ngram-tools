@@ -23,15 +23,19 @@
       :returning :int)
     (ff:def-foreign-call (dummylib-lookup-2gram "dummylib_lookup_2gram")
 	((a :int) (b :int))
+      :call-direct t
       :returning :unsigned-long)
     (ff:def-foreign-call (dummylib-lookup-3gram "dummylib_lookup_3gram")
 	((a :int) (b :int) (c :int))
+      :call-direct t
       :returning :unsigned-long)
     (ff:def-foreign-call (dummylib-lookup-4gram "dummylib_lookup_4gram")
 	((a :int) (b :int) (c :int) (d :int))
+      :call-direct t
       :returning :unsigned-long)
     (ff:def-foreign-call (dummylib-lookup-5gram "dummylib_lookup_5gram")
 	((a :int) (b :int) (c :int) (d :int) (e :int))
+      :call-direct t
       :returning :unsigned-long)
     (defun querying-function-for-n (n)
       (case n

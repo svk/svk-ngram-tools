@@ -13,6 +13,7 @@ void dummylib_quit(void) {
 }
 
 uint64_t dummylib_dictionary( const char *s ) {
+    if( s[0] == '\0' ) return 0;
     return (int) s[0] + 256 * (int) s[1];
 }
 
