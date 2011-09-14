@@ -19,3 +19,6 @@ test-hash-binsize
 test-judysort
 test-mergetapes
 *.log
+test-wordhash-c
+test-wordhash-j
+test-wordhash

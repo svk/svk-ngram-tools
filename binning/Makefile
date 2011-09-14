@@ -8,7 +8,7 @@ LDFLAGS=-lz -lJudy $(TITAN_LDFLAGS)
 CPPC=g++
 
 GETOPTDIR=../lib/freegetopt-0.11
-BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin hashbins-to-sfbt hashbins-to-sfbti sfbti-hashbins-lookup sfbt-hashbins-lookup test-judysort judysort-prepare-tapes mergetapes-to-sfbtin sfbtin-hashbins-lookup
+BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin hashbins-to-sfbt hashbins-to-sfbti sfbti-hashbins-lookup sfbt-hashbins-lookup test-judysort judysort-prepare-tapes mergetapes-to-sfbtin sfbtin-hashbins-lookup test-wordhash test-wordhash-c test-wordhash-j test-mergetapes test-hash-binsize
 
 RAW_VOCABULARY=../data/vocab.gz
 TRANSFORMER=../working/transformer.gz
