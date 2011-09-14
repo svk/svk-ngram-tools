@@ -4,19 +4,47 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 
 static int mertap_n;
 
-void mertap_initialize(int n) {
-    mertap_n = n;
-}
+#ifdef USE_MERTAP_ASSEMBLY
+extern int mertap_cmp_asm1( uint32_t*, uint32_t* );
+extern int mertap_cmp_asm2( uint32_t*, uint32_t* );
+extern int mertap_cmp_asm3( uint32_t*, uint32_t* );
+extern int mertap_cmp_asm4( uint32_t*, uint32_t* );
+extern int mertap_cmp_asm5( uint32_t*, uint32_t* );
 
+static int (*mertap_cmp_p)(uint32_t*, uint32_t*) = 0;
+
+#define MERTAP_CMP( alpha, beta ) (mertap_cmp_p((alpha)->key, (beta)->key))
+
+#else
 static inline int mertap_cmp( struct mertap_record* alpha, struct mertap_record* beta) {
     for(int i=0;i<mertap_n;i++) {
         const int rv = ((int) alpha->key[i]) - ((int) beta->key[i]);
         if( rv ) return rv;
     }
     return 0;
+}
+
+#define MERTAP_CMP mertap_cmp
+
+#endif
+
+void mertap_initialize(int n) {
+    mertap_n = n;
+#ifdef USE_MERTAP_ASSEMBLY
+    switch( n ) {
+        case 1: mertap_cmp_p = mertap_cmp_asm1; break;
+        case 2: mertap_cmp_p = mertap_cmp_asm2; break;
+        case 3: mertap_cmp_p = mertap_cmp_asm3; break;
+        case 4: mertap_cmp_p = mertap_cmp_asm4; break;
+        case 5: mertap_cmp_p = mertap_cmp_asm5; break;
+        default: fprintf( stderr, "error: mertap_initialize(n=%d): invalid n\n", n );
+                 exit(1 );
+    }
+#endif
 }
 
 void mertap_heap_read_push_or_finish( struct mertap_heap* heap, struct mertap_file* f ) {
@@ -37,11 +65,11 @@ struct mertap_file* mertap_heap_pop( struct mertap_heap* heap ) {
     while( MERTAP_HEAP_RIGHT(i) < heap->no_files ) {
             // both children
         const int lc = MERTAP_HEAP_LEFT(i), rc = MERTAP_HEAP_RIGHT(i);
-        const int to_lc = mertap_cmp( &heap->files[i]->peek, &heap->files[lc]->peek );
-        const int to_rc = mertap_cmp( &heap->files[i]->peek, &heap->files[rc]->peek );
+        const int to_lc = MERTAP_CMP( &heap->files[i]->peek, &heap->files[lc]->peek );
+        const int to_rc = MERTAP_CMP( &heap->files[i]->peek, &heap->files[rc]->peek );
         if( to_lc < 0 && to_rc < 0 ) return rv;
 
-        const int lc_to_rc = mertap_cmp( &heap->files[lc]->peek, &heap->files[rc]->peek );
+        const int lc_to_rc = MERTAP_CMP( &heap->files[lc]->peek, &heap->files[rc]->peek );
         if( lc_to_rc < 0 ) {
             void *temp = heap->files[lc];
             heap->files[lc] = heap->files[i];
@@ -59,7 +87,7 @@ struct mertap_file* mertap_heap_pop( struct mertap_heap* heap ) {
 
     if( MERTAP_HEAP_LEFT(i) < heap->no_files ) {
         const int lc = MERTAP_HEAP_LEFT(i), rc = MERTAP_HEAP_RIGHT(i);
-        const int to_lc = mertap_cmp( &heap->files[i]->peek, &heap->files[lc]->peek );
+        const int to_lc = MERTAP_CMP( &heap->files[i]->peek, &heap->files[lc]->peek );
         if( to_lc > 0 ) {
             void *temp = heap->files[lc];
             heap->files[lc] = heap->files[i];
@@ -76,7 +104,7 @@ void mertap_heap_push( struct mertap_heap *heap, struct mertap_file* f ) {
     heap->files[ i ] = f;
     while( i ) {
         const int pi = MERTAP_HEAP_PARENT(i);
-        if( mertap_cmp( &heap->files[i]->peek, &heap->files[pi]->peek ) < 0 ) {
+        if( MERTAP_CMP( &heap->files[i]->peek, &heap->files[pi]->peek ) < 0 ) {
             void *temp = heap->files[pi];
             heap->files[pi] = heap->files[i];
             heap->files[i] = temp;
@@ -107,7 +135,7 @@ int mertap_loop( struct mertap_file *files, int no_files, int (*f)(struct mertap
     while( !MERTAP_HEAP_EMPTY( &heap ) ) {
         topfile = mertap_heap_pop( &heap );
 //        fprintf( stderr, "popped file %p w %lld\n", topfile, topfile->peek.count );
-        if( !mertap_cmp( &buf, &topfile->peek ) ) {
+        if( !MERTAP_CMP( &buf, &topfile->peek ) ) {
             buf.count += topfile->peek.count;
         } else {
             if( f( &buf, arg ) ) return 1;

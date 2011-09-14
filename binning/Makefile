@@ -1,7 +1,8 @@
 TITAN_CFLAGS=-I/ltg/steinavk/lib/include
 TITAN_LDFLAGS=-L/ltg/steinavk/lib/lib -Wl,-R/ltg/steinavk/lib/lib
-CFLAGS=-std=c99 -g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS)
-CPPFLAGS=-g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS)
+CFLAGS=-std=c99 -g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS) $(USE_ASSEMBLY_FLAGS)
+ASFLAGS=$(USE_ASSEMBLY_FLAGS)
+CPPFLAGS=-g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS) $(USE_ASSEMBLY_FLAGS)
 CC=gcc
 LDFLAGS=-lz -lJudy $(TITAN_LDFLAGS)
 CPPC=g++
@@ -121,8 +122,8 @@ test-judysort: test-judysort.o judysort.o
 judysort-prepare-tapes: judysort-prepare-tapes.o judysort.o $(GETOPTDIR)/getopt.o jwordhash.o ngread.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
-test-mergetapes: test-mergetapes.o mergetapes.o
+test-mergetapes: test-mergetapes.o mergetapes.o mergetapes_asm.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
-mergetapes-to-sfbtin: mergetapes-to-sfbtin.o mergetapes.o hashbin.o semifile.o sfbti.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
+mergetapes-to-sfbtin: mergetapes-to-sfbtin.o mergetapes.o mergetapes_asm.o hashbin.o semifile.o sfbti.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
