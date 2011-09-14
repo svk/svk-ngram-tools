@@ -1,7 +1,7 @@
 #!/bin/sh
 TAPEDIR=$1
 TREEDIR=$2
-echo "Converting tapes in $TAPEDIR into trees in $TREEDIR."
+echo "Converting tapes in $TAPEDIR into trees in $TREEDIR (debugging callgrind script -- will not finish on large amounts of data)."
 GRAMS2=`ls -d $TAPEDIR/* | grep 2gram`
 GRAMS3=`ls -d $TAPEDIR/* | grep 3gram`
 GRAMS4=`ls -d $TAPEDIR/* | grep 4gram`
