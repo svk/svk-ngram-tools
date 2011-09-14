@@ -1,0 +1,11 @@
+#!/bin/sh
+echo "Generating at" `date` >> build-nowc-tapes.log
+mkdir -p ~/tmp/tapes-nowc-2gram/
+mkdir -p ~/tmp/tapes-nowc-3gram/
+mkdir -p ~/tmp/tapes-nowc-4gram/
+mkdir -p ~/tmp/tapes-nowc-5gram/
+time zcat ~/ngrams/data/2gms/*.gz | ./judysort-prepare-tapes -L 100000000 -T ../working/transformer.gz -n 2 -P ~/tmp/tapes-nowc-2gram/ 2>> build-nowc-tapes.log
+time zcat ~/ngrams/data/3gms/*.gz | ./judysort-prepare-tapes -L 100000000 -T ../working/transformer.gz -n 3 -P ~/tmp/tapes-nowc-3gram/ 2>> build-nowc-tapes.log
+time zcat ~/ngrams/data/4gms/*.gz | ./judysort-prepare-tapes -L 100000000 -T ../working/transformer.gz -n 4 -P ~/tmp/tapes-nowc-4gram/ 2>> build-nowc-tapes.log
+time zcat ~/ngrams/data/5gms/*.gz | ./judysort-prepare-tapes -L 100000000 -T ../working/transformer.gz -n 5 -P ~/tmp/tapes-nowc-5gram/ 2>> build-nowc-tapes.log
+echo "Done at" `date` >> build-nowc-tapes.log

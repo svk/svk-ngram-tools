@@ -18,3 +18,4 @@ sfbtin-hashbins-lookup
 test-hash-binsize
 test-judysort
 test-mergetapes
+*.log
