@@ -1,8 +1,0 @@
-We divide the vocabulary into m bins, equally sized by frequency.
-Reasonable values for m are not much larger than 10.
-
-We then split the n-gram data into n**m smaller sorted lists, each
-in a separate file, compressed individually.
-
-To make a lookup, we determine the file name by determining the
-bin of each token, open this (smaller) file, and search through it.

@@ -1,6 +1,9 @@
 data/
 lib/
 working/
+junk/
+.junk/
 *.pyc
 *.o
 callgrind*
+logs/
