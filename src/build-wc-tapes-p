@@ -7,7 +7,7 @@ for n in 2 3 4 5; do
     TDIR="./tapes.output/tapes-wc-${n}gram/"
     mkdir -p $TDIR
     for d in $DIGITS; do
-        zcat ~/ngrams/data/${n}gms/*$d.gz | ./judysort-prepare-tapes -L $SZ -T ../working/transformer.gz -W -n ${n} -P $TDIR/dig${d}_ 2>> $LOGFILE &
+        zcat ~/ngrams/data/${n}gms/*$d.gz | ./judysort-prepare-tapes -L $SZ -T ../data/working/transformer.gz -W -n ${n} -P $TDIR/dig${d}_ 2>> $LOGFILE &
     done
     wait
     echo "Finished generating $n-grams at" `date` >> $LOGFILE

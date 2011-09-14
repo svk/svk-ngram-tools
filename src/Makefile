@@ -11,12 +11,12 @@ GETOPTDIR=../lib/freegetopt-0.11
 BINARIES=test-ngread test-judysort judysort-prepare-tapes mergetapes-to-sfbtin sfbtin-hashbins-lookup test-wordhash-j test-mergetapes
 
 RAW_VOCABULARY=../data/vocab.gz
-TRANSFORMER=../working/transformer.gz
-PROCESSED_VOCABULARY=../working/vocabulary.gz
+TRANSFORMER=../data/working/transformer.gz
+PROCESSED_VOCABULARY=../data/working/vocabulary.gz
 TEST_5GRAMS=../data/5gm-0015.gz
 TEMP_TAPES=./temp-tapes/
 TEST_TRANSFORMED_INPUT=../data/transformed.txt
-TREE_DIR=../working/trees/
+TREE_DIR=../data/working/trees/
 TEMP_DIR=../../tmp/
 NGRAM_DIR=../../ngrams/data/
 
