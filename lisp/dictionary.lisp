@@ -1,8 +1,8 @@
-#+asdf (progn
-	 (asdf:operate 'asdf:load-op :gzip-stream)
-	 (asdf:operate 'asdf:load-op :cl-utilities))
+(progn
+  (asdf:operate 'asdf:load-op :gzip-stream)
+  (asdf:operate 'asdf:load-op :cl-utilities))
 
-(defun parse-dictionary-entry (string)
+*(defun parse-dictionary-entry (string)
   (let ((sseq (cl-utilities:split-sequence #\Tab string :count 2)))
     (values (car sseq)
 	    (parse-integer (cadr sseq)))))
