@@ -38,6 +38,10 @@ def transformation( s ):
     return s
 
 if __name__ == '__main__':
+    # Note: This main() part is currently UNUSED.
+    #       We do not transform n-gram files; we transform the vocabulary instead.
+    #       However, this file is NOT unused: transformation() is imported into
+    #       the script that transforms the vocabulary.
     while True:
         v = stdin.readline()
         if not v:
