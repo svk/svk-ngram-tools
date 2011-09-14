@@ -1,8 +1,9 @@
 #!/bin/sh
-LOGFILE=build-wc-tapes-p.log
+LOGFILE=../logs/build-wc-tapes-p.log
 echo "Generating (parallelized) at" `date` >> $LOGFILE
 DIGITS="0 1 2 3 4 5 6 7 8 9"
 SZ=150000000
+sleep 100
 for n in 2 3 4 5; do
     TDIR="./tapes.output/tapes-wc-${n}gram/"
     mkdir -p $TDIR
