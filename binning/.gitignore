@@ -15,7 +15,6 @@ mergetapes-to-sfbtin
 sfbt-hashbins-lookup
 sfbti-hashbins-lookup
 sfbtin-hashbins-lookup
-test-hash-binsize
 test-judysort
 test-mergetapes
 *.log

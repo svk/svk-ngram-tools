@@ -8,7 +8,7 @@ LDFLAGS=-lz -lJudy $(TITAN_LDFLAGS)
 CPPC=g++
 
 GETOPTDIR=../lib/freegetopt-0.11
-BINARIES=btprint test-bins test-ngread mkbins test-binsize showbin hashbins-to-sfbt hashbins-to-sfbti sfbti-hashbins-lookup sfbt-hashbins-lookup test-judysort judysort-prepare-tapes mergetapes-to-sfbtin sfbtin-hashbins-lookup test-wordhash test-wordhash-c test-wordhash-j test-mergetapes test-hash-binsize
+BINARIES=test-ngread test-judysort judysort-prepare-tapes mergetapes-to-sfbtin sfbtin-hashbins-lookup test-wordhash-j test-mergetapes
 
 RAW_VOCABULARY=../data/vocab.gz
 TRANSFORMER=../working/transformer.gz
@@ -71,47 +71,14 @@ test-sfbtin.output: $(TRANSFORMER) judysort-prepare-tapes mergetapes-to-sfbtin
 	zcat $(TEST_5GRAMS) | ./judysort-prepare-tapes -T $(TRANSFORMER) -W -n 5 -P $(TEMP_TAPES) -L 20000000
 	./mergetapes-to-sfbtin -c -B 5 -o test-sfbtin.output -n 5 -p 2 $(TEMP_TAPES)/*
 
-showbin: showbin.o bins.o ngread.o $(GETOPTDIR)/getopt.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
-hashbins-to-sfbt: hashbins-to-sfbt.o hashbin.o semifile.o sfbt.o ngread.o $(GETOPTDIR)/getopt.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
-sfbt-hashbins-lookup: sfbt-hashbins-lookup.o hashbin.o semifile.o sfbt.o ngread.o $(GETOPTDIR)/getopt.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
-btprint: btprint.o bins.o $(GETOPTDIR)/getopt.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
-test-bins: test-bins.o bins.o $(GETOPTDIR)/getopt.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
-test-binsize: test-binsize.o bins.o ngread.o $(GETOPTDIR)/getopt.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
 test-hash-binsize: test-hash-binsize.o sha1.o bins.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
 test-ngread: test-ngread.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
-mkbins: mkbins.o ngread.o bins.o $(GETOPTDIR)/getopt.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
-test-wordhash: test-wordhash.o ngread.o $(GETOPTDIR)/getopt.o
-	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
-test-wordhash-c: test-wordhash-c.o ngread.o wordhash.o $(GETOPTDIR)/getopt.o
-	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
 test-wordhash-j: test-wordhash-c.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
-hashbins-to-sfbti: hashbins-to-sfbti.o hashbin.o semifile.o sfbti.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
-	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
-
-sfbti-hashbins-lookup: sfbti-hashbins-lookup.o jwordhash.o hashbin.o semifile.o sfbti.o ngread.o $(GETOPTDIR)/getopt.o
-	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
 sfbtin-hashbins-lookup: sfbtin-hashbins-lookup.o jwordhash.o hashbin.o semifile.o sfbti.o ngread.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
