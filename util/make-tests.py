@@ -32,7 +32,7 @@ def process_entries( out, accept, args, wildcarder, progress ):
     processed = 0
     for ngram in read_ngrams( args ):
         if accept():
-            out( ngram )
+            out( wildcarder( ngram ) )
             rv += 1
         processed += 1
         progress( processed )
@@ -113,14 +113,15 @@ if __name__ == '__main__':
         print >> stderr, "Counted %d n-grams (took %0.2lf seconds)." % (count, t1-t0)
     wildcarder = lambda x : x
     if options.wildcard_independent:
+        chance = float( options.wildcard_independent )
         def f( xs ):
             rv = []
             for x in xs:
-                if r.random() < options.wildcard_independent:
+                if r.random() < chance:
                     rv.append( "<*>" )
                 else:
                     rv.append( x )
-            return tuple( xs )
+            return tuple( rv )
         wildcarder = f
     def print_ngram( ngram ):
         print >> out, "\t".join( wildcarder( ngram ) )
@@ -144,8 +145,7 @@ if __name__ == '__main__':
     generated = process_entries( output, lambda : r.random() < probability, args, wildcarder, progress )
     if options.shuffle:
         print >> stderr, "Generation done, shuffling and writing.."
-        from random import shuffle
-        shuffle( collection )
+        r.shuffle( collection )
         for ngram in collection:
             print_ngram( ngram )
     t1 = time()

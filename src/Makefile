@@ -2,9 +2,9 @@ TITAN_CFLAGS=-I/ltg/steinavk/lib/include
 TITAN_LDFLAGS=-L/ltg/steinavk/lib/lib -Wl,-R/ltg/steinavk/lib/lib
 CFLAGS=-std=c99 -g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS) $(USE_ASSEMBLY_FLAGS)
 ASFLAGS=$(USE_ASSEMBLY_FLAGS)
-CPPFLAGS=-g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS) $(USE_ASSEMBLY_FLAGS)
+CPPFLAGS=-g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS) $(USE_ASSEMBLY_FLAGS) -I ../lib/iniparser/src
 CC=gcc
-LDFLAGS=-lz -lJudy $(TITAN_LDFLAGS)
+LDFLAGS=-lz -lJudy -liniparser $(TITAN_LDFLAGS) -L../lib/iniparser
 CPPC=g++
 
 GETOPTDIR=../lib/freegetopt-0.11
@@ -89,6 +89,9 @@ test-wordhash-j: test-wordhash-c.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
 
 test-judysort: test-judysort.o judysort.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
+
+test-iniparser: test-iniparser.o
+	$(CPPC) -liniparser $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
 ../util/judysort-prepare-tapes: judysort-prepare-tapes.o judysort.o $(GETOPTDIR)/getopt.o jwordhash.o ngread.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
