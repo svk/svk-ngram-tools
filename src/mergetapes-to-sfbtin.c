@@ -29,6 +29,8 @@ struct sfbti_wctx **histogram = 0;
 
 #define MAX_PASSES 200
 
+long long int *wcpattern_frequency = 0;
+
 long long ipow(long long a, long long b) {
     if( !b ) return 1;
     if( b == 1 ) return a;
@@ -42,12 +44,21 @@ int output_to_sfbti(struct mertap_record* rec, void*arg) {
     int iseq[ N ];
     int err;
 
+    int wcpattern = 0;
+
     for(int i=0;i<N;i++) {
         index *= no_bins;
             // note we now take the hash of the INTEGER data
         index += classify_uint32( no_bins, murmur_hash( (char*) &rec->key[ i ], 4 ) );
         iseq[i] = rec->key[i];
+
+        wcpattern <<= 1;
+        if( iseq[i] == 0 ) {
+            ++wcpattern;
+        }
     }
+
+    wcpattern_frequency[ wcpattern ]++;
 
     if( histogram[ index ] ) {
         ++hits;
@@ -128,6 +139,12 @@ int main(int argc, char* argv[]) {
     long long maxindex = ipow( no_bins, N );
     int *xs = malloc(sizeof *xs * N );
     assert( xs );
+
+    wcpattern_frequency = malloc(sizeof *wcpattern_frequency * (1 << N) );
+    assert( wcpattern_frequency );
+    for(int i=0;i<(1<<N);i++) {
+        wcpattern_frequency[i] = 0;
+    }
 
     int no_passes = (maxindex+DESCRIPTORS_PER_BATCH-1) / DESCRIPTORS_PER_BATCH;
     int passes_min[ MAX_PASSES ];
@@ -307,7 +324,16 @@ int main(int argc, char* argv[]) {
         fprintf( stderr, "Success.\n" );
     } else {
         fprintf( stderr, "Child exit.\n" );
+        fprintf( stderr, "Wildcarding statistics (total across all passes):\n\t" );
+        for(int i=0;i<(1<<N);i++) {
+            for(int j=0;j<N;j++) {
+                fprintf( stderr, "%c", (i & (1<<(N-1-j))) ? '*' : '-' );
+            }
+            fprintf( stderr, "\t%lld\n", wcpattern_frequency[i] );
+        }
     }
+
+    free( wcpattern_frequency );
 
     return 0;
 }
