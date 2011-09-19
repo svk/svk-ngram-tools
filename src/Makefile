@@ -91,7 +91,7 @@ test-judysort: test-judysort.o judysort.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
 
 test-iniparser: test-iniparser.o
-	$(CPPC) -liniparser $(LDFLAGS) $(CPPFLAGS) -o $@ $^
+	$(CPPC) $(CPPFLAGS) -o $@ $^ $(LDFLAGS)
 
 ../util/judysort-prepare-tapes: judysort-prepare-tapes.o judysort.o $(GETOPTDIR)/getopt.o jwordhash.o ngread.o
 	$(CPPC) $(LDFLAGS) $(CPPFLAGS) -o $@ $^
@@ -101,3 +101,6 @@ test-mergetapes: test-mergetapes.o mergetapes.o mergetapes_asm.o
 
 ../util/mergetapes-to-sfbtin: mergetapes-to-sfbtin.o mergetapes.o mergetapes_asm.o hashbin.o semifile.o sfbti.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
+
+lib1tquery.so: lib1tquery.o hashbin.o jwordhash.o
+	$(CPPC) $(LDFLAGS) $(CFLAGS) -shared -o $@ -fPIC $^
