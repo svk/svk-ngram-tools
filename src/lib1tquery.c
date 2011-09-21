@@ -137,6 +137,9 @@ int lib1tquery_init(const char *inifile) {
         return 1;
     }
 
+    strcpy( inifilename, inifile );
+
+    fprintf( stderr, "Loading configuration file \"%s\".\n", inifilename );
     dictionary *ini = iniparser_load( inifilename );
 
     memset( &ctx, 0, sizeof ctx );
