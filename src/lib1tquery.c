@@ -222,9 +222,8 @@ int32_t lib1tquery_dictionary( const char *s ) {
     return lookup_wordhash( ctx.wordhash, s );
 }
 
-int64_t dummylib_lookup_2gram( int32_t a, int32_t b ) {
-    const struct lib1tquery_tree_context *t = ctx.grams[2];
-    const int32_t key[] = { a, b };
+int64_t lib1tquery_lookup_ngram( int n, const int32_t* key ) {
+    const struct lib1tquery_tree_context *t = ctx.grams[n];
     int ikey[5];
 
     assert( library_initialized );
@@ -253,95 +252,22 @@ int64_t dummylib_lookup_2gram( int32_t a, int32_t b ) {
     return count;
 }
 
-int64_t dummylib_lookup_3gram( int32_t a, int32_t b, int32_t c ) {
-    const struct lib1tquery_tree_context *t = ctx.grams[3];
+int64_t lib1tquery_lookup_2gram( int32_t a, int32_t b ) {
+    const int32_t key[] = { a, b };
+    return lib1tquery_lookup_ngram( 2, key );
+}
+
+int64_t lib1tquery_lookup_3gram( int32_t a, int32_t b, int32_t c ) {
     const int32_t key[] = { a, b, c };
-    int ikey[5];
-
-    assert( library_initialized );
-    assert( t );
-
-    int index = 0;
-    for(int i=0;i<t->n;i++) {
-        if( key[i] < 0 ) return 0;
-        index *= t->bins;
-        index += classify_uint32( t->bins, murmur_hash( (char*) &key[i], 4 ) );
-        ikey[i] = key[i];
-    }
-
-    int64_t count;
-    int rv = sfbti_search( &t->rctxs[index], ikey, t->n, &count );
-
-    if( rv ) {
-        fprintf( stderr, "warning: lookup failed for" );
-        for(int i=0;i<t->n;i++) {
-            fprintf( stderr, "%d ", ikey[i] );
-        }
-        fprintf( stderr, "\n" );
-        return 0;
-    }
-
-    return count;
+    return lib1tquery_lookup_ngram( 2, key );
 }
 
-int64_t dummylib_lookup_4gram( int32_t a, int32_t b, int32_t c, int32_t d ) {
-    const struct lib1tquery_tree_context *t = ctx.grams[4];
+int64_t lib1tquery_lookup_4gram( int32_t a, int32_t b, int32_t c, int32_t d ) {
     const int32_t key[] = { a, b, c, d };
-    int ikey[5];
-
-    assert( library_initialized );
-    assert( t );
-
-    int index = 0;
-    for(int i=0;i<t->n;i++) {
-        if( key[i] < 0 ) return 0;
-        index *= t->bins;
-        index += classify_uint32( t->bins, murmur_hash( (char*) &key[i], 4  ) );
-        ikey[i] = key[i];
-    }
-
-    int64_t count;
-    int rv = sfbti_search( &t->rctxs[index], ikey, t->n, &count );
-
-    if( rv ) {
-        fprintf( stderr, "warning: lookup failed for" );
-        for(int i=0;i<t->n;i++) {
-            fprintf( stderr, "%d ", ikey[i] );
-        }
-        fprintf( stderr, "\n" );
-        return 0;
-    }
-
-    return count;
+    return lib1tquery_lookup_ngram( 2, key );
 }
 
-int64_t dummylib_lookup_5gram( int32_t a, int32_t b, int32_t c, int32_t d, int32_t e ) {
-    const struct lib1tquery_tree_context *t = ctx.grams[5];
+int64_t lib1tquery_lookup_5gram( int32_t a, int32_t b, int32_t c, int32_t d, int32_t e ) {
     const int32_t key[] = { a, b, c, d, e };
-    int ikey[5];
-
-    assert( library_initialized );
-    assert( t );
-
-    int index = 0;
-    for(int i=0;i<t->n;i++) {
-        if( key[i] < 0 ) return 0;
-        index *= t->bins;
-        index += classify_uint32( t->bins, murmur_hash( (char*) &key[i], 4  ) );
-        ikey[i] = key[i];
-    }
-
-    int64_t count;
-    int rv = sfbti_search( &t->rctxs[index], ikey, t->n, &count );
-
-    if( rv ) {
-        fprintf( stderr, "warning: lookup failed for" );
-        for(int i=0;i<t->n;i++) {
-            fprintf( stderr, "%d ", ikey[i] );
-        }
-        fprintf( stderr, "\n" );
-        return 0;
-    }
-
-    return count;
+    return lib1tquery_lookup_ngram( 2, key );
 }

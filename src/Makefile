@@ -1,10 +1,12 @@
 TITAN_CFLAGS=-I/ltg/steinavk/lib/include
 TITAN_LDFLAGS=-L/ltg/steinavk/lib/lib -Wl,-R/ltg/steinavk/lib/lib
-CFLAGS=-std=c99 -g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS) $(USE_ASSEMBLY_FLAGS)
+UIO_CFLAGS=-I/uio/aristoteles/s38/steinavk/svk-ngram-tools/lib/include
+UIO_LDFLAGS=-L/uio/aristoteles/s38/steinavk/svk-ngram-tools/lib/lib -Wl,-R/uio/aristoteles/s38/steinavk/svk-ngram-tools/lib/lib
+CFLAGS=-std=c99 -g $(TITAN_CFLAGS) $(UIO_CFLAGS) $(OPTIMIZE_FLAGS) $(USE_ASSEMBLY_FLAGS) -fPIC
 ASFLAGS=$(USE_ASSEMBLY_FLAGS)
-CPPFLAGS=-g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS) $(USE_ASSEMBLY_FLAGS) -I ../lib/iniparser/src
+CPPFLAGS=-g $(TITAN_CFLAGS) $(OPTIMIZE_FLAGS) $(USE_ASSEMBLY_FLAGS) -I ../lib/iniparser/src -fPIC
 CC=gcc
-LDFLAGS=-lz -lJudy -liniparser $(TITAN_LDFLAGS) -L../lib/iniparser
+LDFLAGS=-lz -lJudy -liniparser $(TITAN_LDFLAGS) $(UIO_LDFLAGS) -L../lib/iniparser
 CPPC=g++
 
 GETOPTDIR=../lib/freegetopt-0.11
@@ -102,5 +104,5 @@ test-mergetapes: test-mergetapes.o mergetapes.o mergetapes_asm.o
 ../util/mergetapes-to-sfbtin: mergetapes-to-sfbtin.o mergetapes.o mergetapes_asm.o hashbin.o semifile.o sfbti.o ngread.o jwordhash.o $(GETOPTDIR)/getopt.o
 	$(CPPC) $(LDFLAGS) $(CFLAGS) -o $@ $^
 
-lib1tquery.so: lib1tquery.o hashbin.o jwordhash.o
-	$(CPPC) $(LDFLAGS) $(CFLAGS) -shared -o $@ -fPIC $^
+lib1tquery.so: lib1tquery.o hashbin.o jwordhash.o ngread.o
+	$(CPPC) $(LDFLAGS) -shared $(CFLAGS) -o $@ -fPIC $^
