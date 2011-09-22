@@ -36,7 +36,6 @@ def process_entries( out, accept, args, wildcarder, progress, transformer, test_
         ngram = ngram.split(" ")
         from sys import stderr
         if accept():
-            print >> stderr, "accept"
             out( wildcarder( map( transformer, ngram ) ) )
             rv += 1
             if test_target and rv >= test_target:
@@ -150,14 +149,12 @@ if __name__ == '__main__':
         print >> stderr, "done."
         transform = lambda x : d[x]
     def print_ngram( ngram ):
-        print >> stderr, repr(ngram)
         s = " ".join( wildcarder( ngram ) )
         print >> out, s
     output = print_ngram
     collection = []
     if options.shuffle:
         def add_ngram_to_collection( x ):
-            print >> stderr, repr(x)
             collection.append( x )
         output = add_ngram_to_collection
     target = int(options.queries_to_generate)
