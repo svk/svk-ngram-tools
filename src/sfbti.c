@@ -121,6 +121,7 @@ int sfbti_write_root( struct sfbti_wctx* wctx ) {
         long t = FSF_FTELL( wctx->f );
         if( FSF_FSEEK( wctx->f, wctx->current_generation_foffset, SEEK_SET ) ) break;
         if(sfbti_collect_children( wctx, t )) break;
+        fprintf( stderr, "[sfbti-finalize] root of tree \"%s\" has %d children\n", wctx->filename, wctx->collected_children );
         if( !wctx->collected_children ) {
             // should maybe fix this, but it is low-priority because it is not
             // necessary in the binning scheme: if the bin is empty, not
@@ -140,13 +141,17 @@ int sfbti_write_root( struct sfbti_wctx* wctx ) {
 }
 
 int sfbti_finalize( struct sfbti_wctx* wctx ) {
+    int height = 1;
     if( sfbti_flush_record( wctx ) ) return 1;
     do {
         int rv = sfbti_check_last_child_gen_at( wctx, wctx->current_generation_foffset );
         if( rv < 0 ) return 1;
         if( rv ) break;
         if( sfbti_write_parents( wctx ) ) return 1;
+        height++;
     } while(1);
+    height++;
+    fprintf( stderr, "[sfbti-finalize] height of tree \"%s\" is %d\n", wctx->filename, height );
     if( sfbti_write_root( wctx ) ) return 1;
     return 0;
 }

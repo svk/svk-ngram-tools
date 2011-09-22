@@ -11,6 +11,8 @@
 
 #include <assert.h>
 
+#include <time.h>
+
 /* TODO consider threading */
 
 struct lib1tquery_tree_context {
@@ -50,8 +52,11 @@ static void lib1tquery_free_tree_context( struct lib1tquery_tree_context *tctx )
     free( tctx );
 }
 
-struct lib1tquery_tree_context* lib1tquery_make_tree_context( int n, const char *filename_prefix, int bins, int prefix_digits ) {
+struct lib1tquery_tree_context* lib1tquery_make_tree_context( int n, const char *filename_prefix, int bins, int prefix_digits, int cache_level ) {
     struct lib1tquery_tree_context *rv = malloc(sizeof *rv);
+    int64_t cache_spent = 0;
+    time_t t0 = time(0);
+    fprintf( stderr, "Loading tree[%d,%d,%d] from \"%s\"..", n, bins, prefix_digits, filename_prefix );
     if( rv ) do {
         rv->n = n;
         rv->bins = bins;
@@ -96,11 +101,13 @@ struct lib1tquery_tree_context* lib1tquery_make_tree_context( int n, const char 
             }
             strcat( filename, suffix );
 
-            int irv = sfbti_open_rctx( filename, &rv->rctxs[j], 0 );
+            int irv = sfbti_open_rctx( filename, &rv->rctxs[j], cache_level );
             if( irv || sfbti_suspend_rctx( &rv->rctxs[j] ) ) {
                 fprintf( stderr, "fatal error: load/suspend error on %s or out of memory\n", filename );
                 break;
             }
+
+            cache_spent += rv->rctxs[j].cached_bytes;
         }
         if( j < maxindex ) {
             while( j >= 0 ) {
@@ -114,7 +121,12 @@ struct lib1tquery_tree_context* lib1tquery_make_tree_context( int n, const char 
         }
     } while(0);
     if( !rv ) {
-//        pthread_mutex_init( &tctx->lock, 0 );
+        fprintf( stderr, "failed.\n" );
+    } else {
+        time_t t1 = time(0);
+        time_t dt = t1 - t0;
+        fprintf( stderr, " using %lld bytes as cache %d level(s) beyond root.. ", cache_spent, cache_level );
+        fprintf( stderr, " loaded in %d seconds.\n", dt );
     }
     return rv;
 }
@@ -183,6 +195,7 @@ int lib1tquery_init(const char *inifile) {
 
             int bins;
             int prefix;
+            int cache_level = 0;
 
             snprintf( key, sizeof key, "%dgrams:bins", n );
             bins = iniparser_getint( ini, key, -1 );
@@ -192,10 +205,12 @@ int lib1tquery_init(const char *inifile) {
             prefix = iniparser_getint( ini, key, -1 );
             if( prefix < 0 ) break;
 
-            fprintf( stderr, "Loading tree[%d,%d,%d] from \"%s\"..", n, bins, prefix, filename );
-            ctx.grams[n] = lib1tquery_make_tree_context( n, filename, bins, prefix );
+            snprintf( key, sizeof key, "%dgrams:cache", n );
+            cache_level = iniparser_getint( ini, key, 0 );
+            if( cache_level < 0 ) break;
+
+            ctx.grams[n] = lib1tquery_make_tree_context( n, filename, bins, prefix, cache_level );
             if( !ctx.grams[n] ) break;
-            fprintf( stderr, "done.\n" );
         }
         if( n <= 5 ) break;
 

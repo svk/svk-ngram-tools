@@ -146,6 +146,15 @@ int main(int argc, char* argv[]) {
         wcpattern_frequency[i] = 0;
     }
 
+    const int number_of_trees = maxindex;
+    fprintf( stderr, "[mergetapes-to-sfbtin] generating %d trees, width %d, node size %d (cached %d)\n", number_of_trees, KEYS_PER_RECORD, sizeof (struct sfbti_record), sizeof (struct sfbti_cached_record) );
+    int nodes_need_caching = number_of_trees;
+    for(int i=0;i<=1;i++) {
+        nodes_need_caching *= KEYS_PER_RECORD;
+        nodes_need_caching += number_of_trees;
+        fprintf( stderr, "[mergetapes-to-sfbtin] caching %d level(s) beyond root would require at most %d bytes\n", i, nodes_need_caching * sizeof (struct sfbti_cached_record) );
+    }
+
     int no_passes = (maxindex+DESCRIPTORS_PER_BATCH-1) / DESCRIPTORS_PER_BATCH;
     int passes_min[ MAX_PASSES ];
     int passes_max[ MAX_PASSES ];
@@ -170,6 +179,7 @@ int main(int argc, char* argv[]) {
             fprintf( stderr, "\tPass #%d: %d-%d\n", i, passes_min[i], passes_max[i] );
         }
     }
+
 
     int passno = 1;
 
