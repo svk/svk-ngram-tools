@@ -28,21 +28,64 @@ def count_entries( args ):
         rv += 1
     return rv
 
+def make_independent_wildcarder( rate ):
+    def independent_wildcarder( r, ngram ):
+        rv = []
+        for x in xs:
+            if r.random() < rate:
+                rv.append( "<*>" )
+            else:
+                rv.append( x )
+        return tuple( rv )
+    return independent_wildcarder
 
-def process_entries( out, accept, args, wildcarder, progress, transformer, test_target = None ):
-    rv = 0
-    processed = 0
-    for ngram in read_ngrams( args ):
-        ngram = ngram.split(" ")
-        from sys import stderr
-        if accept():
-            out( wildcarder( map( transformer, ngram ) ) )
-            rv += 1
-            if test_target and rv >= test_target:
-                break
-        processed += 1
-        progress( processed )
-    return rv
+class EntryProcessor:
+    def __init__(self, rand, outFile, acceptRate, wildcarder, transformer, shuffle = False ):
+        self.rand = rand
+        self.outFile = outFile
+        self.acceptRate = acceptRate
+        self.wildcarder = wildcarder
+        self.transformer = transformer
+        self.rv = 0
+        self.processed = 0
+        self.collection = []
+        self.shuffle = shuffle
+    def feed( self, split_ngram ):
+        if self.rand.random() < self.acceptRate:
+            result = map( self.transformer, split_ngram )
+            if self.wildcarder:
+                result = self.wildcarder( self.rand, result )
+            if self.shuffle:
+                self.collection.append( result )
+            else:
+                self.output_ngram( result )
+            self.rv += 1
+        self.processed += 1
+    def output_ngram( self, ngram ):
+        print >> self.outFile, " ".join( ngram )
+    def finalize( self ):
+        if self.shuffle:
+            self.rand.shuffle( ngram )
+            for ngram in self.collection:
+                self.output_ngram( ngram )
+        self.outFile.close()
+        return self.rv
+
+#
+#def process_entries( out, accept, args, wildcarder, progress, transformer, test_target = None ):
+#    rv = 0
+#    processed = 0
+#    for ngram in read_ngrams( args ):
+#        ngram = ngram.split(" ")
+#        from sys import stderr
+#        if accept():
+#            out( wildcarder( map( transformer, ngram ) ) )
+#            rv += 1
+#            if test_target and rv >= test_target:
+#                break
+#        processed += 1
+#        progress( processed )
+#    return rv
 
 
 if __name__ == '__main__':
@@ -83,8 +126,6 @@ if __name__ == '__main__':
     parser.add_option( "-T", "--transformer", dest = "transformer",
                        help="preprocess using transformer", metavar="NUM",
                        default = None )
-    parser.add_option( "-t", "--test-mode", dest = "test_mode", action="store_true", default = False,
-                       help="test mode (stop after reaching goal, greatly increase probability)", metavar="NUM" )
     options, args = parser.parse_args()
     StandardCounts = {
         1: 13588391,
@@ -103,7 +144,7 @@ if __name__ == '__main__':
     if options.filename:
         out = open( options.filename, "w" )
     if options.count:
-        count = options.count
+        count = int(options.count)
     elif options.count_1grams or options.count_2grams or options.count_3grams or options.count_4grams or options.count_5grams:
         count = 0
         if options.count_1grams:
@@ -122,18 +163,10 @@ if __name__ == '__main__':
         count = count_entries( args )
         t1 = time()
         print >> stderr, "Counted %d n-grams (took %0.2lf seconds)." % (count, t1-t0)
-    wildcarder = lambda x : x
+    wildcarder = lambda r, x : x
     if options.wildcard_independent:
         chance = float( options.wildcard_independent )
-        def f( xs ):
-            rv = []
-            for x in xs:
-                if r.random() < chance:
-                    rv.append( "<*>" )
-                else:
-                    rv.append( x )
-            return tuple( rv )
-        wildcarder = f
+        wildcarder = make_independent_wildcarder( chance )
     transform = lambda x : x
     if options.transformer:
         d = {}
@@ -148,23 +181,17 @@ if __name__ == '__main__':
             f.close()
         print >> stderr, "done."
         transform = lambda x : d[x]
-    def print_ngram( ngram ):
-        s = " ".join( wildcarder( ngram ) )
-        print >> out, s
-    output = print_ngram
-    collection = []
-    if options.shuffle:
-        def add_ngram_to_collection( x ):
-            collection.append( x )
-        output = add_ngram_to_collection
+#    def print_ngram( ngram ):
+#        s = " ".join( wildcarder( ngram ) ) # double wildcarding?
+#        print >> out, s
+#    output = out
+#    collection = []
+#    if options.shuffle:
+#        def add_ngram_to_collection( x ):
+#            collection.append( x )
+#        output = None
     target = int(options.queries_to_generate)
-    test_target = None
     probability = target / float( count )
-    if options.test_mode:
-        print >> stderr, "Running in TEST MODE (will generate low-quality results quickly)."
-        test_target = target
-        probability = min( 1.0, probability * 1000 )
-        probability = 1.0
     print >> stderr, "Running with probability %lf." % probability
     t0 = time()
     def progress( n ):
@@ -176,11 +203,20 @@ if __name__ == '__main__':
             speed = n / elapsed
             remaining = (N-n) / speed
             print "%d%% done, %0.lf seconds remaining.." % (n0, remaining)
-    generated = process_entries( output, lambda : r.random() < probability, args, wildcarder, progress, transformer = transform, test_target = test_target)
-    if options.shuffle:
-        print >> stderr, "Generation done, shuffling and writing.."
-        r.shuffle( collection )
-        for ngram in collection:
-            print_ngram( ngram )
+    entryProcessor = EntryProcessor( r, outFile = out, acceptRate = probability, wildcarder = wildcarder, transformer = transform)
+#    print >> stderr, "Generating", len(entryProcessors), "in parallel.."
+    processed = 0
+    for ngram in read_ngrams( args ):
+        split_ngram = ngram.split(" ")
+        entryProcessor.feed( split_ngram )
+        processed += 1
+        progress( processed )
+#    generated = process_entries( output, lambda : r.random() < probability, args, wildcarder, progress, transformer = transform)
+#    if options.shuffle:
+#        print >> stderr, "Generation done, shuffling and writing.."
+#        r.shuffle( collection )
+#        for ngram in collection:
+#            print_ngram( ngram )
+    generated = entryProcessor.finalize()
     t1 = time()
     print >> stderr, "Generated %d queries (%0.2lf of target, took %0.2lf seconds)." % (generated, (generated/float(target)*100.0), t1 - t0)
