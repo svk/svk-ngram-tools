@@ -4,7 +4,12 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "tarbind.h"
+
 #include "semifile.h"
+
+#define USE_OS
+#define USE_TAR
 
 /* Single-file B-tree, integer variant.
 
@@ -134,6 +139,30 @@ struct sfbti_rctx {
     int cached_bytes;
 };
 
+struct sfbti_os_rctx {
+    int fd;
+    char filename[ MAX_SFBT_FILENAME_LEN ];
+
+    int suspend;
+
+    struct sfbti_cached_record *root;
+
+    struct sfbti_record buffer;
+
+    int cached_bytes;
+};
+
+struct sfbti_tar_rctx {
+    struct tarbind_binding *binding;
+
+    struct sfbti_cached_record *root;
+
+    struct sfbti_record buffer;
+
+    int cached_bytes;
+    char filename[ MAX_SFBT_FILENAME_LEN ];
+};
+
 struct sfbti_cached_record* sfbti_cache_node(struct sfbti_rctx*, int);
 void sfbti_free_cache(struct sfbti_cached_record*);
 
@@ -145,5 +174,20 @@ int sfbti_search(struct sfbti_rctx*, const int*, const int, int64_t*);
 
 int sfbti_suspend_rctx(struct sfbti_rctx*);
 int sfbti_desuspend_rctx(struct sfbti_rctx*);
+
+int sfbti_os_open_rctx(const char*, struct sfbti_os_rctx*, int);
+struct sfbti_cached_record* sfbti_os_cache_node(struct sfbti_os_rctx*, int);
+int sfbti_os_close_rctx(struct sfbti_os_rctx*);
+int sfbti_os_suspend_rctx(struct sfbti_os_rctx*);
+int sfbti_os_desuspend_rctx(struct sfbti_os_rctx*);
+int sfbti_os_readnode(struct sfbti_os_rctx*, struct sfbti_record* );
+int sfbti_os_search(struct sfbti_os_rctx*, const int*, const int, int64_t*);
+
+int sfbti_tar_open_rctx(struct tarbind_context*, const char*, struct sfbti_tar_rctx*, int);
+int sfbti_tar_close_rctx(struct sfbti_tar_rctx*);
+
+struct sfbti_cached_record* sfbti_tar_cache_node(struct sfbti_tar_rctx*, int);
+int sfbti_tar_readnode(struct sfbti_tar_rctx*, struct sfbti_record* );
+int sfbti_tar_search(struct sfbti_tar_rctx*, const int*, const int, int64_t*);
 
 #endif

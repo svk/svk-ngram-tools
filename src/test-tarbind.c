@@ -14,8 +14,7 @@ int main(int argc, char *argv[]) {
         if( !binding ) {
             fprintf( stderr, "no %s in %s\n", looking_for, tarfilename );
         } else {
-            lseek( ctx->descriptor, binding->offset, SEEK_SET );
-            read( ctx->descriptor, buffer, sizeof buffer );
+            tarbind_read_at( binding, buffer, 0, sizeof buffer );
             buffer[sizeof buffer-1] = '\0';
             fprintf( stderr, "%s in %s: %s\n", looking_for, tarfilename,  buffer);
         }

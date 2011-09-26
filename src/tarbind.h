@@ -42,5 +42,7 @@ void tarbind_free( struct tarbind_context* );
 
 struct tarbind_binding * tarbind_get_binding( struct tarbind_context*, const char* );
 int tarbind_read_at( struct tarbind_binding*, void *, tarbind_offset, int );
+int tarbind_seek_to( struct tarbind_binding* );
+int tarbind_seek_into( struct tarbind_binding*, tarbind_offset );
 
 #endif

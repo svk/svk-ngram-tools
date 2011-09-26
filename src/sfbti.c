@@ -6,6 +6,11 @@
 #include <string.h>
 #include <errno.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 int sfbti_check_last_child_gen_at( struct sfbti_wctx* wctx, long foffset ) {
     // are there few enough nodes in this generation that the
     // next node will be the root node?
@@ -520,6 +525,262 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
+    return 0;
+}
+
+#endif
+
+#ifdef USE_OS
+
+int sfbti_os_readnode(struct sfbti_os_rctx* rctx, struct sfbti_record* node ) {
+    unsigned char *buf = (void*) node;
+    ssize_t done = 0;
+    while( done < sizeof *node ) {
+        ssize_t rv = read( rctx->fd, &buf[done], sizeof *node - done );
+        if( rv <= 0 ) {
+            return 1;
+        }
+        done += rv;
+    }
+    return 0;
+}
+
+int sfbti_os_suspend_rctx(struct sfbti_os_rctx* rctx) {
+    rctx->suspend = 1; // note asymmetry!
+
+    if( rctx->fd != -1 ) {
+        close( rctx->fd );
+        rctx->fd = -1;
+    }
+
+    return 0;
+}
+
+int sfbti_os_desuspend_rctx(struct sfbti_os_rctx* rctx) {
+    if( rctx->fd == -1 ) {
+        rctx->fd = open( rctx->filename, O_RDONLY );
+        if( rctx->fd == -1 ) return 1;
+    }
+
+    return 0;
+}
+
+int sfbti_os_open_rctx(const char *filename, struct sfbti_os_rctx* rctx, int depth) {
+    memset( rctx, 0, sizeof *rctx );
+    rctx->fd = open( filename, O_RDONLY );
+    if( rctx->fd == -1 ) return 1;
+
+    do {
+        rctx->root = sfbti_os_cache_node( rctx, depth );
+        if( !rctx->root ) break;
+
+        assert( strlen( rctx->filename ) < MAX_SFBT_FILENAME_LEN );
+        strcpy( rctx->filename, filename );
+
+        return 0;
+    } while(0);
+    if( rctx->root ) {
+        sfbti_free_cache( rctx->root );
+    }
+    close( rctx->fd );
+    return 1;
+}
+
+int sfbti_os_close_rctx(struct sfbti_os_rctx* rctx) {
+    if( rctx->fd != -1 ) {
+        close( rctx->fd );
+        rctx->fd = -1;
+    }
+    return 0;
+}
+
+struct sfbti_cached_record* sfbti_os_cache_node(struct sfbti_os_rctx* rctx, int depth) {
+    struct sfbti_cached_record *rv = malloc(sizeof *rv);
+    do {
+        rctx->cached_bytes += sizeof *rv;
+        if( !rv ) break;
+
+        memset( rv, 0, sizeof *rv );
+
+        if( sfbti_os_readnode( rctx, &rv->data ) ) break;
+
+        if( depth > 0 ) {
+            int i;
+            for(i=0;i<KEYS_PER_RECORD;i++) {
+                off_t* fpos = (off_t*) &rv->data.keyvals[i][KEY_SIZE];
+                if( ((off_t)-1) == lseek( rctx->fd, *fpos, SEEK_SET ) ) break;
+                rv->cached[i] = sfbti_os_cache_node( rctx, depth - 1 );
+                if( !rv->cached[i] ) break;
+            }
+            if( i < KEYS_PER_RECORD ) break;
+        }
+
+        return rv;
+    } while(0);
+
+    if( rv ) {
+        for(int i=0;i<KEYS_PER_RECORD;i++) if( rv->cached[i] ) {
+            sfbti_free_cache( rv->cached[i] );
+        }
+    }
+
+    if( rv ) free(rv);
+
+    return 0;
+}
+
+int sfbti_os_search(struct sfbti_os_rctx* rctx, const int* key, const int ngram_size, int64_t* count_out) {
+    struct sfbti_cached_record *cache = rctx->root;
+    struct sfbti_record *node = &cache->data;
+
+    if( rctx->suspend ) {
+        if( sfbti_os_desuspend_rctx( rctx ) ) return 1;
+    }
+
+    while( !(node->flags & FLAG_ENTRIES_ARE_LEAVES) ) {
+        int index = sfbti_find_index( node, key, ngram_size, 0 );
+
+        if( index < 0 ) return 1;
+        if( cache && cache->cached[index] ) {
+            cache = cache->cached[index];
+            node = &cache->data;
+        } else {
+            off_t* fpos = (off_t*) &node->keyvals[index][KEY_SIZE];
+            if( ((off_t)-1) == lseek( rctx->fd, *fpos, SEEK_SET ) ) return 1;
+            if( sfbti_os_readnode( rctx, &rctx->buffer ) ) return 1;
+            cache = 0;
+            node = &rctx->buffer;
+        }
+    }
+    int index = sfbti_find_index( node, key, ngram_size, 1 );
+    if( index < 0 ) {
+//        fprintf( stderr, "unable to find %d:%d:%d:%d:%d\n", key[0], key[1], key[2], key[3], key[4] );
+        *count_out = 0;
+    } else {
+        int64_t* countp = (int64_t*)&node->keyvals[index][KEY_SIZE];
+        *count_out = *countp;
+//        fprintf( stderr, "found %d:%d:%d:%d:%d -> %lld\n", key[0], key[1], key[2], key[3], key[4], *count_out );
+    }
+
+    if( rctx->suspend ) {
+        if( sfbti_os_suspend_rctx( rctx ) ) return 1;
+    }
+
+    return 0;
+}
+#endif
+
+#ifdef USE_TAR
+
+int sfbti_tar_readnode(struct sfbti_tar_rctx* rctx, struct sfbti_record* node ) {
+    unsigned char *buf = (void*) node;
+    ssize_t done = 0;
+    while( done < sizeof *node ) {
+        ssize_t rv = read( rctx->binding->context->descriptor, &buf[done], sizeof *node - done );
+        if( rv <= 0 ) {
+            return 1;
+        }
+        done += rv;
+    }
+    return 0;
+}
+
+int sfbti_tar_open_rctx(struct tarbind_context *context, const char *filename, struct sfbti_tar_rctx* rctx, int depth) {
+    memset( rctx, 0, sizeof *rctx );
+
+    fprintf( stderr, "[sfbti-tar] Getting binding for \"%s\"..", filename );
+    rctx->binding = tarbind_get_binding( context, filename );
+    if( !rctx->binding ) {
+        fprintf( stderr, "failed!\n" );
+        return 1;
+    }
+    tarbind_seek_to( rctx->binding );
+    fprintf( stderr, "done.\n" );
+
+    do {
+        rctx->root = sfbti_tar_cache_node( rctx, depth );
+        if( !rctx->root ) break;
+
+        assert( strlen( rctx->filename ) < MAX_SFBT_FILENAME_LEN );
+        strcpy( rctx->filename, filename );
+
+        return 0;
+    } while(0);
+    if( rctx->root ) {
+        sfbti_free_cache( rctx->root );
+    }
+    return 1;
+}
+
+int sfbti_tar_close_rctx(struct sfbti_tar_rctx* rctx) {
+    // bindings are freed by tarbind
+    return 0;
+}
+
+struct sfbti_cached_record* sfbti_tar_cache_node(struct sfbti_tar_rctx* rctx, int depth) {
+    struct sfbti_cached_record *rv = malloc(sizeof *rv);
+    do {
+        rctx->cached_bytes += sizeof *rv;
+        if( !rv ) break;
+
+        memset( rv, 0, sizeof *rv );
+
+        if( sfbti_tar_readnode( rctx, &rv->data ) ) break;
+
+        if( depth > 0 ) {
+            int i;
+            for(i=0;i<KEYS_PER_RECORD;i++) {
+                off_t* fpos = (off_t*) &rv->data.keyvals[i][KEY_SIZE];
+                if( tarbind_seek_into( rctx->binding, *fpos ) ) break;
+//                if( ((off_t)-1) == lseek( rctx->binding->context->descriptor, *fpos, SEEK_SET ) ) break;
+                rv->cached[i] = sfbti_tar_cache_node( rctx, depth - 1 );
+                if( !rv->cached[i] ) break;
+            }
+            if( i < KEYS_PER_RECORD ) break;
+        }
+
+        return rv;
+    } while(0);
+
+    if( rv ) {
+        for(int i=0;i<KEYS_PER_RECORD;i++) if( rv->cached[i] ) {
+            sfbti_free_cache( rv->cached[i] );
+        }
+    }
+
+    if( rv ) free(rv);
+
+    return 0;
+}
+
+int sfbti_tar_search(struct sfbti_tar_rctx* rctx, const int* key, const int ngram_size, int64_t* count_out) {
+    struct sfbti_cached_record *cache = rctx->root;
+    struct sfbti_record *node = &cache->data;
+
+    while( !(node->flags & FLAG_ENTRIES_ARE_LEAVES) ) {
+        int index = sfbti_find_index( node, key, ngram_size, 0 );
+
+        if( index < 0 ) return 1;
+        if( cache && cache->cached[index] ) {
+            cache = cache->cached[index];
+            node = &cache->data;
+        } else {
+            off_t* fpos = (off_t*) &node->keyvals[index][KEY_SIZE];
+//            if( ((off_t)-1) == lseek( rctx->binding->context->descriptor, *fpos, SEEK_SET ) ) return 1;
+            if( tarbind_seek_into( rctx->binding, *fpos ) ) return 1;
+            if( sfbti_tar_readnode( rctx, &rctx->buffer ) ) return 1;
+            cache = 0;
+            node = &rctx->buffer;
+        }
+    }
+    int index = sfbti_find_index( node, key, ngram_size, 1 );
+    if( index < 0 ) {
+        *count_out = 0;
+    } else {
+        int64_t* countp = (int64_t*)&node->keyvals[index][KEY_SIZE];
+        *count_out = *countp;
+    }
+
     return 0;
 }
 #endif

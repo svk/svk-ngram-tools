@@ -13,6 +13,8 @@
 
 #include <time.h>
 
+#include "tarbind.h"
+
 /* TODO consider threading */
 
 struct lib1tquery_tree_context {
@@ -22,12 +24,13 @@ struct lib1tquery_tree_context {
 
 //    pthread_mutex_t lock;
 
-    struct sfbti_rctx *rctxs;
+    struct sfbti_tar_rctx *rctxs;
 };
 
 struct lib1tquery_context {
     WordHashCtx wordhash;
     struct lib1tquery_tree_context *grams[6];
+    struct tarbind_context *tarbind_ctx;
 };
 
 static struct lib1tquery_context ctx;
@@ -45,14 +48,14 @@ static void lib1tquery_free_tree_context( struct lib1tquery_tree_context *tctx )
     if( !tctx ) return;
     int maxindex = ipow( tctx->bins, tctx->n );
     for(int i=0;i<maxindex;i++) {
-        sfbti_close_rctx( &tctx->rctxs[i] );
+        sfbti_tar_close_rctx( &tctx->rctxs[i] );
     }
     free( tctx->rctxs );
 //    pthread_mutex_destroy( &tctx->lock );
     free( tctx );
 }
 
-struct lib1tquery_tree_context* lib1tquery_make_tree_context( int n, const char *filename_prefix, int bins, int prefix_digits, int cache_level ) {
+struct lib1tquery_tree_context* lib1tquery_make_tree_context( int n, const char *filename_prefix, int bins, int prefix_digits, int cache_level, struct tarbind_context *tarbind_context ) {
     struct lib1tquery_tree_context *rv = malloc(sizeof *rv);
     int64_t cache_spent = 0;
     time_t t0 = time(0);
@@ -90,10 +93,14 @@ struct lib1tquery_tree_context* lib1tquery_make_tree_context( int n, const char 
                     sprintf( buf2, "%c", xs[k] + 'a' );
                     strcat( buf, buf2 );
                 }
-                strcat( filename, "/" );
+                if( strlen(filename) > 0 && filename[ strlen(filename) - 1 ] != '/' ) {
+                    strcat( filename, "/" );
+                }
                 strcat( filename, buf );
             }
-            strcat( filename, "/" );
+            if( strlen(filename) > 0 && filename[ strlen(filename) - 1 ] != '/' ) {
+                strcat( filename, "/" );
+            }
             for(int k=prefix_digits;k<n;k++) {
                 char buf2[8];
                 sprintf( buf2, "%c", xs[k] + 'a' );
@@ -101,17 +108,23 @@ struct lib1tquery_tree_context* lib1tquery_make_tree_context( int n, const char 
             }
             strcat( filename, suffix );
 
-            int irv = sfbti_open_rctx( filename, &rv->rctxs[j], cache_level );
-            if( irv || sfbti_suspend_rctx( &rv->rctxs[j] ) ) {
+            int irv = sfbti_tar_open_rctx( tarbind_context, filename, &rv->rctxs[j], cache_level );
+            if( irv ) {
+                fprintf( stderr, "fatal error: load error on %s or out of memory\n", filename );
+                break;
+            }
+/*
+            if( irv || sfbti_os_suspend_rctx( &rv->rctxs[j] ) ) {
                 fprintf( stderr, "fatal error: load/suspend error on %s or out of memory\n", filename );
                 break;
             }
+*/
 
             cache_spent += rv->rctxs[j].cached_bytes;
         }
         if( j < maxindex ) {
             while( j >= 0 ) {
-                sfbti_close_rctx( &rv->rctxs[j] );
+                sfbti_tar_close_rctx( &rv->rctxs[j] );
                 j--;
             }
             free( rv->rctxs );
@@ -133,6 +146,8 @@ struct lib1tquery_tree_context* lib1tquery_make_tree_context( int n, const char 
 
 void lib1tquery_quit(void) {
     if( !library_initialized ) return;
+    
+    tarbind_free( ctx.tarbind_ctx );
 
     free_wordhashes( ctx.wordhash );
 
@@ -164,6 +179,13 @@ int lib1tquery_init(const char *inifile) {
 
         char *suffix;
         char *filename;
+        char *tarfilename;
+
+        suffix = iniparser_getstring( ini, "general:tarfile", "trees.gz" );
+        len = strlen(root) + strlen( suffix ) + 1;
+        tarfilename = alloca( len );
+        if( !tarfilename ) break;
+        snprintf( tarfilename, len, "%s%s", root, suffix );
 
         suffix = iniparser_getstring( ini, "dictionary:location", "vocabulary.gz" );
         len = strlen(root) + strlen( suffix ) + 1;
@@ -171,27 +193,32 @@ int lib1tquery_init(const char *inifile) {
         if( !filename ) break;
         snprintf( filename, len, "%s%s", root, suffix );
 
+        fprintf( stderr, "Binding tar file \"%s\".\n", tarfilename );
+        ctx.tarbind_ctx = tarbind_create( tarfilename );
+        if( !ctx.tarbind_ctx ) break;
+
         fprintf( stderr, "Loading dictionary from \"%s\"..", filename );
         ctx.wordhash = read_wordhashes( filename );
         if( !ctx.wordhash ) break;
         fprintf( stderr, "done.\n" );
-
 
         int n;
         for(n=2;n<=5;n++) {
             char key[128];
             snprintf( key, sizeof key, "%dgrams:location", n );
 
-            suffix = iniparser_getstring( ini, key, 0 );
-            if( !suffix ) {
+            // changed: for tar-names wqe use the name directly
+            filename = iniparser_getstring( ini, key, 0 );
+            if( !filename ) {
                 fprintf( stderr, "Skipping %d-grams.\n", n );
                 continue;
             }
-
+/*
             len = strlen(root) + strlen( suffix ) + 1;
             filename = alloca( len );
             if( !filename ) break;
             snprintf( filename, len, "%s%s", root, suffix );
+*/
 
             int bins;
             int prefix;
@@ -209,7 +236,7 @@ int lib1tquery_init(const char *inifile) {
             cache_level = iniparser_getint( ini, key, 0 );
             if( cache_level < 0 ) break;
 
-            ctx.grams[n] = lib1tquery_make_tree_context( n, filename, bins, prefix, cache_level );
+            ctx.grams[n] = lib1tquery_make_tree_context( n, filename, bins, prefix, cache_level, ctx.tarbind_ctx );
             if( !ctx.grams[n] ) break;
         }
         if( n <= 5 ) break;
@@ -256,7 +283,7 @@ int64_t lib1tquery_lookup_ngram( int n, const int32_t* key ) {
     }
 
     int64_t count;
-    int rv = sfbti_search( &t->rctxs[index], ikey, t->n, &count );
+    int rv = sfbti_tar_search( &t->rctxs[index], ikey, t->n, &count );
 
     if( rv ) {
         fprintf( stderr, "warning: lookup failed for" );

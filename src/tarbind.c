@@ -9,6 +9,17 @@
 #define MAX(a,b) (((a)<(b))?(b):(a))
 #define MIN(a,b) (((a)>(b))?(b):(a))
 
+int tarbind_seek_into( struct tarbind_binding* binding, tarbind_offset offset ) {
+    // todo error checking?
+    int rv = lseek( binding->context->descriptor, binding->offset + offset, SEEK_SET );
+    return 0;
+}
+
+int tarbind_seek_to( struct tarbind_binding* binding ) {
+    int rv = lseek( binding->context->descriptor, binding->offset, SEEK_SET );
+    return 0;
+}
+
 int tarbind_read_at( struct tarbind_binding* binding, void *buffer, tarbind_offset offset, int length) {
     length = MAX( length, binding->length - offset );
     if( length < 0 ) return -1;
@@ -117,6 +128,8 @@ static int tarbind_scan_tar( struct tarbind_context *ctx ) {
             if( tarbind_add_binding( ctx, filename, current, file_size ) ) {
                 return 1;
             }
+
+            fprintf( stderr, "[tarbind] on %016lx : %s (%ld)\n", (int64_t) current, filename, (int64_t) file_size );
 
             long long int blocks = (file_size + 512 - 1) / 512;
 
