@@ -26,6 +26,7 @@
 typedef int64_t tarbind_offset;
 
 struct tarbind_binding {
+    struct tarbind_context *context;
     tarbind_offset offset;
     tarbind_offset length;
 };
@@ -40,5 +41,6 @@ struct tarbind_context* tarbind_create( const char* );
 void tarbind_free( struct tarbind_context* );
 
 struct tarbind_binding * tarbind_get_binding( struct tarbind_context*, const char* );
+int tarbind_read_at( struct tarbind_binding*, void *, tarbind_offset, int );
 
 #endif

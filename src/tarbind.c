@@ -6,6 +6,17 @@
 
 #define TAR_PATH_MAX 100
 
+#define MAX(a,b) (((a)<(b))?(b):(a))
+#define MIN(a,b) (((a)>(b))?(b):(a))
+
+int tarbind_read_at( struct tarbind_binding* binding, void *buffer, tarbind_offset offset, int length) {
+    length = MAX( length, binding->length - offset );
+    if( length < 0 ) return -1;
+    int rv = lseek( binding->context->descriptor, offset + binding->offset, SEEK_SET );
+    if( rv == -1 ) return -1;
+    return read( binding->context->descriptor, buffer, length );
+}
+
 struct tarbind_binding * tarbind_get_binding( struct tarbind_context* ctx, const char* name ) {
     PWord_t judyValue;
 
@@ -35,6 +46,7 @@ static int tarbind_add_binding( struct tarbind_context* context, const char *nam
         return 1;
     }
 
+    binding->context = context;
     binding->offset = offset;
     binding->length = length;
     
@@ -94,22 +106,20 @@ static int tarbind_scan_tar( struct tarbind_context *ctx ) {
                 goodsum2 += sbuffer[i];
             }
             if( checksum != goodsum1 && checksum != goodsum2 ) {
-                fprintf( stderr, "[tarbind] fatal: tar checksum mismatch\n" );
+                fprintf( stderr, "[tarbind] fatal: tar checksum mismatch (%d (\"%s\") vs %d or %d), filename might be \"%s\"\n", checksum, numberbuffer, goodsum1, goodsum2, filename );
                 return 1;
             }
 
             memset( numberbuffer, 0, sizeof numberbuffer );
             memcpy( numberbuffer, &buffer[filesize_offset], filesize_size );
-            fprintf( stderr, "sz %s\n", numberbuffer );
-            tarbind_offset file_size = strtol( numberbuffer, 0, 0 );
+            tarbind_offset file_size = strtol( numberbuffer, 0, 8 );
 
             if( tarbind_add_binding( ctx, filename, current, file_size ) ) {
                 return 1;
             }
 
-            fprintf( stderr, "[tarbind] at %016lx scanned \"%s\" %llu bytes\n", (uint64_t) current, filename, (uint64_t) file_size );
+            long long int blocks = (file_size + 512 - 1) / 512;
 
-            long int blocks = (file_size + 512 - 1) / 512;
             off_t rv = lseek( ctx->descriptor, blocks * 512, SEEK_CUR );
             if( rv == -1 ) {
                 fprintf( stderr, "[tarbind] fatal: seek error\n" );
